@@ -1,0 +1,14 @@
+{
+  "domain": "ontario_energy_pricing",
+  "name": "Ontario Energy Pricing",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/lobstah/ha-ontario-energy-pricing",
+  "iot_class": "cloud_polling",
+  "requirements": [
+    "aiohttp>=3.9.0",
+    "voluptuous>=0.13.0"
+  ],
+  "version": "1.0.0"
+}
