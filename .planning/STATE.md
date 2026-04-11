@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 02 of 2 (core entities)
 status: unknown
-last_updated: "2026-04-11T15:57:38.577Z"
+last_updated: "2026-04-11T15:59:30.285Z"
 progress:
   total_phases: 4
   completed_phases: 2
@@ -68,9 +68,7 @@ progress:
 
 ### API Key (for development)
 
-```
-GridStatus API Key: [REDACTED]
-```
+**Stored securely in Home Assistant - never commit to git.**
 
 ### Data Sources
 
