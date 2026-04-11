@@ -9,7 +9,7 @@ A Home Assistant custom integration (HACS-compatible) that provides sensors trac
 3. **Global Adjustment (GA)** - Monthly rate component from IESO public XML
 4. **Total Rate** - Combined LMP + GA + Admin Fee (for easy automation use)
 
-The integration exposes these as Home Assistant sensors that can be used in automations, dashboards, and energy monitoring.
+The integration exposes these as Home Assistant sensors that can be used in automations, dashboards, and energy monitoring. Location is configurable during setup (e.g., "Oakville, ON").
 
 **Note:** HOEP was retired on May 1, 2025. This integration uses LMP (Locational Marginal Pricing) which replaced HOEP under IESO's Market Renewal Program.
 
@@ -23,7 +23,7 @@ Users can see their real-time electricity rates in Home Assistant and make infor
 (None yet - ship to validate)
 
 ### Active
-- [ ] Retrieve LMP rate from gridstatus.io API for zone near Oakville (L6L 2S7)
+- [ ] Retrieve LMP rate from gridstatus.io API for user-configured location
 - [ ] Compute 24-hour rolling average from 30-minute interval data
 - [ ] Retrieve Global Adjustment from IESO public XML (published monthly)
 - [ ] Config flow for API key and admin fee amount (fee added to current rate)
@@ -48,16 +48,13 @@ Users can see their real-time electricity rates in Home Assistant and make infor
 
 ## Context
 
-This integration is designed for personal use in Oakville, Ontario (postal code L6L 2S7) where the user has a contract with an energy supplier that includes:
-- Real-time LMP-based pricing (replaced retired HOEP)
-- Global Adjustment passthrough
-- Fixed administrative fee (flat fee added to current hourly average rate)
+This integration is designed for personal use in Ontario where users have contracts with energy suppliers that include real-time LMP-based pricing, Global Adjustment passthrough, and administrative fees.
 
-**Location Specifics:**
-- Address: Oakville, ON L6L 2S7
-- Target: Determine appropriate IESO zone or nearby pricing node
-- Historical: This area was in IESO "West" zone pre-nodal pricing
-- Current: Under nodal pricing, specific location-based pricing applies
+**Location Configuration:**
+- User configures their city/location during setup (e.g., "Oakville, ON")
+- Integration queries GridStatus API to find nearest/appropriate IESO zone
+- Stores selected zone in config for all future queries
+- Falls back to ONTARIO-wide average if specific zone unavailable
 
 **Key technical considerations:**
 - gridstatus.io provides a Python client library but raw REST API may be preferred for Home Assistant integration
@@ -81,7 +78,7 @@ This integration is designed for personal use in Oakville, Ontario (postal code 
 | HACS custom repository vs default | Only for personal use, not submitting to HACS default repo | - Pending |
 | REST API vs Python client | Home Assistant integrations typically use direct HTTP to avoid extra deps | - Pending |
 | IESO GA source | IESO public XML at reports.ieso.ca/public/GlobalAdjustment/ | - Pending |
-| Ontario zone mapping | Need to query LMP API to determine zone for L6L 2S7 | - Pending |
+| Ontario zone mapping | Configurable location with zone discovery during setup | - Pending |
 | 24h average aggregation | GridStatus provides 5-min data, aggregate to 30-min intervals then daily average | - Pending |
 
 ---
