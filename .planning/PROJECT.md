@@ -20,7 +20,7 @@ Users can see their real-time electricity rates in Home Assistant and make infor
 ## Requirements
 
 ### Validated
-(None yet - ship to validate)
+- ✓ **Data Layer (Phase 1)** - API clients, data models, exceptions (2026-04-11)
 
 ### Active
 - [ ] Retrieve LMP rate from gridstatus.io API for user-configured location
