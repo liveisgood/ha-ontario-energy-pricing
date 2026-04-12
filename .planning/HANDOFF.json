@@ -62,5 +62,22 @@
     "tests/__init__.py"
   ],
   "next_action": "Begin Phase 3: Configuration & Error Handling (CONF-03, CONF-04, ERR-01 to ERR-04)",
+  "skills": {
+    "resume": "full-resume",
+    "pause": "full-stop",
+    "skill_location": ".pi/skills/"
+  },
+  "memex": {
+    "session_card": "gsd-session-ontario-energy-phase2-complete",
+    "domain_card": "ontario-energy-pricing-domain",
+    "pattern_card": "gsd-pause-resume-memex-pattern",
+    "related_cards": [
+      "gsd-init-complete",
+      "phase-validation-process",
+      "gsd-task-tool-workaround",
+      "hacs-component-test-patterns",
+      "hacs-custom-component-dev"
+    ]
+  },
   "context_notes": "Phase 2 (Core Entities) is FULLY COMPLETE and VALIDATED. All 18 Phase 2 requirements have automated tests. The GSD compatibility layer (pi-gsd-compat.py) is now in place and working. Next phase addresses config persistence and comprehensive error handling."
 }
