@@ -53,6 +53,13 @@ def async_setup_entry(
     lmp_24h_coordinator = LMP24hAverageCoordinator(hass, api_key, zone)
     ga_coordinator = GlobalAdjustmentCoordinator(hass)
 
+    # Store coordinators for service access
+    hass.data[DOMAIN][config_entry.entry_id]["coordinators"] = [
+        lmp_coordinator,
+        lmp_24h_coordinator,
+        ga_coordinator,
+    ]
+
     # Create sensors
     entities: list[SensorEntity] = [
         OntarioLMPCurrentPriceSensor(lmp_coordinator),
@@ -60,7 +67,6 @@ def async_setup_entry(
         OntarioGlobalAdjustmentSensor(ga_coordinator),
         OntarioTotalRateSensor(lmp_coordinator, ga_coordinator, admin_fee),
     ]
-
     async_add_entities(entities)
 
 
@@ -87,6 +93,8 @@ class OntarioEnergyPricingSensor(CoordinatorEntity, SensorEntity):
 
 class OntarioLMPCurrentPriceSensor(OntarioEnergyPricingSensor):
     """Sensor for current LMP price."""
+
+    _attr_icon = "mdi:lightning-bolt"
 
     def __init__(self, coordinator: LMPCoordinator) -> None:
         """Initialize the current LMP sensor."""
@@ -118,6 +126,8 @@ class OntarioLMPCurrentPriceSensor(OntarioEnergyPricingSensor):
 class OntarioLMP24hAverageSensor(OntarioEnergyPricingSensor):
     """Sensor for 24-hour LMP average."""
 
+    _attr_icon = "mdi:chart-line"
+
     def __init__(self, coordinator: LMP24hAverageCoordinator) -> None:
         """Initialize the 24h average sensor."""
         super().__init__(coordinator, SENSOR_LMP_24H_AVG)
@@ -145,6 +155,8 @@ class OntarioLMP24hAverageSensor(OntarioEnergyPricingSensor):
 class OntarioGlobalAdjustmentSensor(OntarioEnergyPricingSensor):
     """Sensor for Global Adjustment rate."""
 
+    _attr_icon = "mdi:cash"
+
     def __init__(self, coordinator: GlobalAdjustmentCoordinator) -> None:
         """Initialize the GA sensor."""
         super().__init__(coordinator, SENSOR_GLOBAL_ADJUSTMENT)
@@ -168,6 +180,8 @@ class OntarioGlobalAdjustmentSensor(OntarioEnergyPricingSensor):
 class OntarioTotalRateSensor(OntarioEnergyPricingSensor):
     """Sensor for total rate (LMP + GA + Admin Fee)."""
 
+    _attr_icon = "mdi:scale-balance"
+
     def __init__(
         self,
         lmp_coordinator: LMPCoordinator,
@@ -185,11 +199,9 @@ class OntarioTotalRateSensor(OntarioEnergyPricingSensor):
         lmp_price = None
         if self.coordinator.data:
             lmp_price = self.coordinator.data.price
-
         ga_rate = None
         if self._ga_coordinator.data:
             ga_rate = self._ga_coordinator.data.rate
-
         if lmp_price is not None and ga_rate is not None:
             return lmp_price + ga_rate + self._admin_fee
         return None
@@ -200,11 +212,9 @@ class OntarioTotalRateSensor(OntarioEnergyPricingSensor):
         lmp_price = None
         if self.coordinator.data:
             lmp_price = self.coordinator.data.price
-
         ga_rate = None
         if self._ga_coordinator.data:
             ga_rate = self._ga_coordinator.data.rate
-
         return {
             "lmp_rate": lmp_price,
             "ga_rate": ga_rate,

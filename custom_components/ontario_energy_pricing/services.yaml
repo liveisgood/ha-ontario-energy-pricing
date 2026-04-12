@@ -1,0 +1,4 @@
+refresh:
+  name: Refresh
+  description: Manually refresh all sensor data from APIs
+  fields: {}

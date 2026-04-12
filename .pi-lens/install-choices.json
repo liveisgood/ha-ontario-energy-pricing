@@ -6,5 +6,9 @@
   "bash-language-server": {
     "choice": "yes",
     "timestamp": 1776007301919
+  },
+  "yaml-language-server": {
+    "choice": "no",
+    "timestamp": 1776015507037
   }
 }
