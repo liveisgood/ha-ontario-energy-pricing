@@ -1,0 +1,23 @@
+{
+  "stateVersion": 9,
+  "lastSuggestion": {
+    "text": "Fix all gaps",
+    "shownAt": "2026-04-12T14:47:06.706Z",
+    "turnId": "e659fc42",
+    "sourceLeafId": "e659fc42",
+    "variantName": "default",
+    "strategy": "compact",
+    "requestedStrategy": "compact"
+  },
+  "steeringHistory": [
+    {
+      "turnId": "fa80ad4b",
+      "suggestedPrompt": "/gsd-plan-phase\n\n3",
+      "actualUserPrompt": "/gsd-validate-phase 2",
+      "classification": "changed_course",
+      "similarity": 0.5350877192982456,
+      "timestamp": "2026-04-12T14:46:25.568Z"
+    }
+  ],
+  "turnsSinceLastStalenessCheck": 2
+}

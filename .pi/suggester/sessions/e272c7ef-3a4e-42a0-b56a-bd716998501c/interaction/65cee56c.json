@@ -1,0 +1,22 @@
+{
+  "stateVersion": 9,
+  "steeringHistory": [
+    {
+      "turnId": "fa80ad4b",
+      "suggestedPrompt": "/gsd-plan-phase\n\n3",
+      "actualUserPrompt": "/gsd-validate-phase 2",
+      "classification": "changed_course",
+      "similarity": 0.5350877192982456,
+      "timestamp": "2026-04-12T14:46:25.568Z"
+    },
+    {
+      "turnId": "8ea9925f",
+      "suggestedPrompt": "execute",
+      "actualUserPrompt": "Indeed, execute the validation as you should but FIRST you validate the plan",
+      "classification": "changed_course",
+      "similarity": 0.12979189485213583,
+      "timestamp": "2026-04-12T14:50:51.031Z"
+    }
+  ],
+  "turnsSinceLastStalenessCheck": 4
+}

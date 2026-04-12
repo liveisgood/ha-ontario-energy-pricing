@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "sessionId": "e7000f2d-411d-468a-80c6-4bdeae21dd9f",
+  "sessionFile": "/home/dmalloc/.pi/agent/sessions/--home-dmalloc-pidev--/2026-04-11T13-28-48-660Z_e7000f2d-411d-468a-80c6-4bdeae21dd9f.jsonl",
+  "cwd": "/home/dmalloc/pidev",
+  "ignoreLegacyPiSessionEntries": true,
+  "legacyMigration": {
+    "performedAt": "2026-04-11T16:04:41.345Z",
+    "importedLegacyEntries": false,
+    "legacyStateEntryCount": 0,
+    "legacyUsageEntryCount": 0,
+    "note": "Legacy suggester-state/suggester-usage pi session entries were imported once into extension-owned storage and are ignored afterwards."
+  }
+}

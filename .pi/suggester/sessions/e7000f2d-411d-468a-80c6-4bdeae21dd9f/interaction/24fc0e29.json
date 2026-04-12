@@ -1,0 +1,39 @@
+{
+  "stateVersion": 9,
+  "lastSuggestion": {
+    "text": "What about\n\n the npm packages? Add pi-context, @ifi/oh-pi-themes, and @aliou/pi-guardrails to the configuration.",
+    "shownAt": "2026-04-12T14:34:06.669Z",
+    "turnId": "24fc0e29",
+    "sourceLeafId": "24fc0e29",
+    "variantName": "default",
+    "strategy": "compact",
+    "requestedStrategy": "compact"
+  },
+  "steeringHistory": [
+    {
+      "turnId": "afad6293",
+      "suggestedPrompt": "I rotated the key. Continue.",
+      "actualUserPrompt": "I installed npm:pi-context, @ifi/oh-pi-themes, @aliou/pi-guardrails globally please add them to your configuration.",
+      "classification": "changed_course",
+      "similarity": 0.17066267066267066,
+      "timestamp": "2026-04-12T14:18:50.904Z"
+    },
+    {
+      "turnId": "70eb5d4d",
+      "suggestedPrompt": "continue",
+      "actualUserPrompt": "I installed npm packahes with pin install but they are installed globally, please find them an add them to your pi settings file",
+      "classification": "changed_course",
+      "similarity": 0.051470588235294115,
+      "timestamp": "2026-04-12T14:20:07.917Z"
+    },
+    {
+      "turnId": "3a090877",
+      "suggestedPrompt": "Update the configuration to use\n\n a config flow for the city instead of hardcoding it.",
+      "actualUserPrompt": "I installed npm packahes with pi install but they are installed globally, please find them an add them to your pi settings file",
+      "classification": "changed_course",
+      "similarity": 0.20472497486715496,
+      "timestamp": "2026-04-12T14:23:47.971Z"
+    }
+  ],
+  "turnsSinceLastStalenessCheck": 0
+}

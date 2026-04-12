@@ -1,0 +1,22 @@
+{
+  "stateVersion": 9,
+  "pendingNextTurnObservation": {
+    "suggestionTurnId": "afad6293",
+    "suggestionShownAt": "2026-04-11T16:04:41.342Z",
+    "userPromptSubmittedAt": "2026-04-12T14:18:50.904Z",
+    "variantName": "default",
+    "strategy": "compact",
+    "requestedStrategy": "compact"
+  },
+  "steeringHistory": [
+    {
+      "turnId": "afad6293",
+      "suggestedPrompt": "I rotated the key. Continue.",
+      "actualUserPrompt": "I installed npm:pi-context, @ifi/oh-pi-themes, @aliou/pi-guardrails globally please add them to your configuration.",
+      "classification": "changed_course",
+      "similarity": 0.17066267066267066,
+      "timestamp": "2026-04-12T14:18:50.904Z"
+    }
+  ],
+  "turnsSinceLastStalenessCheck": 0
+}

@@ -1,0 +1,30 @@
+{
+  "stateVersion": 9,
+  "pendingNextTurnObservation": {
+    "suggestionTurnId": "70eb5d4d",
+    "suggestionShownAt": "2026-04-12T14:19:44.782Z",
+    "userPromptSubmittedAt": "2026-04-12T14:20:07.917Z",
+    "variantName": "default",
+    "strategy": "compact",
+    "requestedStrategy": "compact"
+  },
+  "steeringHistory": [
+    {
+      "turnId": "afad6293",
+      "suggestedPrompt": "I rotated the key. Continue.",
+      "actualUserPrompt": "I installed npm:pi-context, @ifi/oh-pi-themes, @aliou/pi-guardrails globally please add them to your configuration.",
+      "classification": "changed_course",
+      "similarity": 0.17066267066267066,
+      "timestamp": "2026-04-12T14:18:50.904Z"
+    },
+    {
+      "turnId": "70eb5d4d",
+      "suggestedPrompt": "continue",
+      "actualUserPrompt": "I installed npm packahes with pin install but they are installed globally, please find them an add them to your pi settings file",
+      "classification": "changed_course",
+      "similarity": 0.051470588235294115,
+      "timestamp": "2026-04-12T14:20:07.917Z"
+    }
+  ],
+  "turnsSinceLastStalenessCheck": 1
+}

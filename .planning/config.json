@@ -8,6 +8,28 @@
     "research": true,
     "plan_check": true,
     "verifier": true,
-    "_auto_chain_active": false
+    "_auto_chain_active": false,
+    "nyquist_validation": false
+  },
+  "packages": {
+    "npm": {
+      "global": [
+        {
+          "name": "pi-context",
+          "version": "1.1.2",
+          "scope": null
+        },
+        {
+          "name": "oh-pi-themes",
+          "version": "0.4.4",
+          "scope": "@ifi"
+        },
+        {
+          "name": "pi-guardrails",
+          "version": "0.10.0",
+          "scope": "@aliou"
+        }
+      ]
+    }
   }
 }

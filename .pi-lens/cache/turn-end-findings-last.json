@@ -1,0 +1,3 @@
+{
+  "signature": "tests/test_sensor.py::📐 Cascade errors in 1 other file(s) — fix before finishing turn:\n<diagnostics file=\"tests/test_init.py\">\n  line 9, col 6 code=reportMissingImports: Import \"homeassistant.config_entries\" could not be resolved\n  line 10, col 6 code=reportMissingImports: Import \"homeassistant.const\" could not be resolved\n</diagnostics>"
+}
