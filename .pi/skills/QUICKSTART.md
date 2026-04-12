@@ -1,3 +1,7 @@
+---
+description: Quick reference for /full-resume and /full-stop enhanced slash commands
+---
+
 # Full Resume / Full Stop Quickstart
 
 **New slash commands:** `/full-resume` and `/full-stop`

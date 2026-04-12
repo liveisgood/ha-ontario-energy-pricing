@@ -1,0 +1,22 @@
+{
+  "stateVersion": 9,
+  "pendingNextTurnObservation": {
+    "suggestionTurnId": "3a6b98e3",
+    "suggestionShownAt": "2026-04-12T16:49:06.873Z",
+    "userPromptSubmittedAt": "2026-04-12T16:49:50.810Z",
+    "variantName": "default",
+    "strategy": "compact",
+    "requestedStrategy": "compact"
+  },
+  "steeringHistory": [
+    {
+      "turnId": "3a6b98e3",
+      "suggestedPrompt": "Thanks, let's continue.",
+      "actualUserPrompt": "/skill:full-resume",
+      "classification": "changed_course",
+      "similarity": 0.14634146341463414,
+      "timestamp": "2026-04-12T16:49:50.810Z"
+    }
+  ],
+  "turnsSinceLastStalenessCheck": 1
+}

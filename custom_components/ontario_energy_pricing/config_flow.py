@@ -1,14 +1,12 @@
 """Config flow for Ontario Energy Pricing integration."""
-
 from __future__ import annotations
 
 from typing import Any, TYPE_CHECKING
 
 import voluptuous as vol  # type: ignore
-
-from homeassistant.config_entries import ConfigFlow  # type: ignore
+from homeassistant.config_entries import ConfigFlow, config_entries  # type: ignore
 from homeassistant.const import CONF_API_KEY  # type: ignore
-from homeassistant.core import HomeAssistant  # type: ignore
+from homeassistant.core import HomeAssistant, callback  # type: ignore
 from homeassistant.data_entry_flow import FlowResult  # type: ignore
 from homeassistant.helpers.aiohttp_client import async_get_clientsession  # type: ignore
 
@@ -58,12 +56,31 @@ class OntarioEnergyPricingConfigFlow(ConfigFlow, domain=DOMAIN):
         self._location: str | None = None
         self._available_zones: list[str] = []
 
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> OntarioEnergyPricingOptionsFlow:
+        """Get the options flow for this handler."""
+        return OntarioEnergyPricingOptionsFlow(config_entry)
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle the initial step."""
-        errors: dict[str, str] = {}
+        # Check if already configured
+        entries = self._async_current_entries()
+        if entries:
+            existing = entries[0]
+            return self.async_abort(
+                reason="already_configured",
+                description_placeholders={
+                    "location": existing.data.get(CONF_LOCATION, "Unknown"),
+                    "zone": existing.data.get(CONF_ZONE, "Unknown")
+                }
+            )
 
+        errors: dict[str, str] = {}
         if user_input is not None:
             self._api_key = user_input[CONF_API_KEY]
             self._admin_fee = user_input[CONF_ADMIN_FEE]
@@ -173,14 +190,12 @@ class OntarioEnergyPricingConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             selected_zone = user_input.get(CONF_ZONE, "ONTARIO")
-
             data = {
                 CONF_API_KEY: self._api_key,
                 CONF_ADMIN_FEE: self._admin_fee,
                 CONF_LOCATION: self._location,
                 CONF_ZONE: selected_zone,
             }
-
             return self.async_create_entry(
                 title=f"Ontario Energy Pricing - {self._location}",
                 data=data,
@@ -188,7 +203,6 @@ class OntarioEnergyPricingConfigFlow(ConfigFlow, domain=DOMAIN):
 
         # Try to pre-select best match
         default_zone = self._match_zone_to_location(self._available_zones) or "ONTARIO"
-
         schema = vol.Schema(
             {
                 vol.Required(CONF_ZONE, default=default_zone): vol.In(zone_options),
@@ -199,4 +213,36 @@ class OntarioEnergyPricingConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="zone_select",
             data_schema=schema,
             errors=errors,
+        )
+
+
+class OntarioEnergyPricingOptionsFlow(config_entries.OptionsFlow):
+    """Handle options flow for Ontario Energy Pricing."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Initialize options flow."""
+        self.config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        # Build form with current values
+        schema = vol.Schema({
+            vol.Required(
+                CONF_ADMIN_FEE,
+                default=self.config_entry.data.get(CONF_ADMIN_FEE, 0.0)
+            ): vol.Coerce(float),
+            vol.Required(
+                CONF_ZONE,
+                default=self.config_entry.data.get(CONF_ZONE, "ONTARIO")
+            ): str,
+        })
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=schema,
         )

@@ -25,7 +25,19 @@
       "unknown": "Unexpected error - please check logs"
     },
     "abort": {
-      "already_configured": "This location is already configured"
+      "already_configured": "Ontario Energy Pricing is already configured for {location} ({zone}). Remove the existing configuration to add a new one."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configure Ontario Energy Pricing",
+        "description": "Adjust your energy pricing settings",
+        "data": {
+          "admin_fee": "Admin Fee ($/kWh)",
+          "zone": "Zone"
+        }
+      }
     }
   },
   "entity": {

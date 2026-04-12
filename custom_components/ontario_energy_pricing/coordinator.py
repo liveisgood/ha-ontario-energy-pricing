@@ -11,6 +11,7 @@ from homeassistant.helpers.update_coordinator import (  # type: ignore
     DataUpdateCoordinator,
     UpdateFailed,
 )
+from homeassistant.util import dt as dt_util  # type: ignore
 
 from .const import (
     DOMAIN,
@@ -63,10 +64,8 @@ class LMPCoordinator(OntarioEnergyPricingDataUpdateCoordinator):
         """Initialize the LMP coordinator."""
         self._zone = zone
         self._previous_price: float | None = None
-
         session = async_get_clientsession(hass)
         self._client = GridStatusClient(api_key=api_key, session=session)
-
         super().__init__(
             hass=hass,
             name=f"{DOMAIN}_lmp_{zone}",
@@ -82,12 +81,16 @@ class LMPCoordinator(OntarioEnergyPricingDataUpdateCoordinator):
                 self._previous_price = data.price
             return data
         except GridStatusAuthError as err:
+            # Auth errors - don't retry, fail immediately
+            LOGGER.error("Authentication failed for LMP fetch: %s", err)
             raise UpdateFailed(f"Authentication failed: {err}") from err
-        except GridStatusAPIError as err:
-            raise UpdateFailed(f"API error: {err}") from err
-        except GridStatusConnectionError as err:
-            raise UpdateFailed(f"Connection error: {err}") from err
+        except (GridStatusAPIError, GridStatusConnectionError) as err:
+            # Transient errors - coordinator will retry automatically
+            LOGGER.warning("LMP fetch failed, will retry: %s", err)
+            raise UpdateFailed(f"Failed to fetch LMP data: {err}") from err
         except Exception as err:
+            # Unexpected errors - coordinator will retry
+            LOGGER.exception("Unexpected error during LMP fetch: %s", err)
             raise UpdateFailed(f"Unexpected error: {err}") from err
 
     @property
@@ -107,10 +110,8 @@ class LMP24hAverageCoordinator(OntarioEnergyPricingDataUpdateCoordinator):
     ) -> None:
         """Initialize the 24h average coordinator."""
         self._zone = zone
-
         session = async_get_clientsession(hass)
         self._client = GridStatusClient(api_key=api_key, session=session)
-
         super().__init__(
             hass=hass,
             name=f"{DOMAIN}_lmp_24h_{zone}",
@@ -123,12 +124,13 @@ class LMP24hAverageCoordinator(OntarioEnergyPricingDataUpdateCoordinator):
             data = await self._client.async_get_24h_history(zone=self._zone)
             return data
         except GridStatusAuthError as err:
+            LOGGER.error("Authentication failed for 24h LMP fetch: %s", err)
             raise UpdateFailed(f"Authentication failed: {err}") from err
-        except GridStatusAPIError as err:
-            raise UpdateFailed(f"API error: {err}") from err
-        except GridStatusConnectionError as err:
-            raise UpdateFailed(f"Connection error: {err}") from err
+        except (GridStatusAPIError, GridStatusConnectionError) as err:
+            LOGGER.warning("24h LMP fetch failed, will retry: %s", err)
+            raise UpdateFailed(f"Failed to fetch 24h LMP data: {err}") from err
         except Exception as err:
+            LOGGER.exception("Unexpected error during 24h LMP fetch: %s", err)
             raise UpdateFailed(f"Unexpected error: {err}") from err
 
     def get_24h_average(self) -> float | None:
@@ -147,10 +149,10 @@ class GlobalAdjustmentCoordinator(OntarioEnergyPricingDataUpdateCoordinator):
     ) -> None:
         """Initialize the GA coordinator."""
         self._current_trade_month: str | None = None
-
+        self._last_valid_rate: float | None = None
+        self._last_valid_date: dt_util.datetime | None = None
         session = async_get_clientsession(hass)
         self._client = IESOGlobalAdjustmentClient(session=session)
-
         super().__init__(
             hass=hass,
             name=f"{DOMAIN}_ga",
@@ -161,7 +163,8 @@ class GlobalAdjustmentCoordinator(OntarioEnergyPricingDataUpdateCoordinator):
         """Fetch Global Adjustment data from IESO."""
         try:
             data = await self._client.async_get_current_rate()
-            # Only update if trade_month changed (weekly check)
+
+            # Check if trade_month changed (weekly check)
             if (
                 self._current_trade_month
                 and data.trade_month == self._current_trade_month
@@ -173,12 +176,40 @@ class GlobalAdjustmentCoordinator(OntarioEnergyPricingDataUpdateCoordinator):
                 # Return cached data
                 if self.data:
                     return self.data
+
+            # Update trade month and store valid rate with timestamp
             self._current_trade_month = data.trade_month
+            self._last_valid_rate = data.rate
+            self._last_valid_date = dt_util.utcnow()
             return data
+
         except IESOXMLParseError as err:
-            raise UpdateFailed(f"XML parse error: {err}") from err
+            # Parse errors - check staleness
+            LOGGER.warning("GA XML parse failed: %s", err)
+
+            if self._last_valid_date is not None:
+                age = dt_util.utcnow() - self._last_valid_date
+                if age > timedelta(days=7):
+                    # Data is stale (> 7 days), mark unavailable
+                    LOGGER.error("GA data is stale (> 7 days), marking unavailable")
+                    self._last_valid_rate = None
+                    self._last_valid_date = None
+                    raise UpdateFailed(f"GA data stale: {err}") from err
+
+            # Return cached value (or None if never successfully fetched)
+            LOGGER.debug("Returning cached GA rate: %s", self._last_valid_rate)
+            if self._last_valid_rate is not None:
+                # Create a GlobalAdjustment with cached rate
+                return GlobalAdjustment(
+                    trade_month=self._current_trade_month or "unknown",
+                    rate=self._last_valid_rate,
+                    last_updated=self._last_valid_date or dt_util.utcnow(),
+                )
+            return self.data  # Fallback to last known data
+
         except Exception as err:
-            raise UpdateFailed(f"Unexpected error: {err}") from err
+            LOGGER.exception("Unexpected error during GA fetch: %s", err)
+            raise UpdateFailed(f"Failed to fetch GA: {err}") from err
 
     @property
     def current_rate(self) -> float | None:
