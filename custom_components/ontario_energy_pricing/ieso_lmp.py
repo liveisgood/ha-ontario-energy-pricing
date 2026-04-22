@@ -6,10 +6,9 @@ import asyncio
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Final
+from typing import Final
 
-if TYPE_CHECKING:
-    import aiohttp
+import aiohttp
 
 from .const import IESO_DEFAULT_TIMEOUT, LOGGER
 

@@ -5,10 +5,9 @@ from __future__ import annotations
 import asyncio
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Final
+from typing import Final
 
-if TYPE_CHECKING:
-    import aiohttp
+import aiohttp
 
 from .const import LOGGER
 from .exceptions import IESOXMLParseError
