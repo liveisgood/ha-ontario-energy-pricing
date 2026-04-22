@@ -7,9 +7,10 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
-    from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import DOMAIN, LOGGER, UPDATE_INTERVAL_LMP
 from .exceptions import IESOXMLParseError
