@@ -1,50 +1,49 @@
 {
-  "config": {
-    "title": "Ontario Energy Pricing",
-    "step": {
-      "user": {
-        "title": "Ontario Energy Pricing Setup",
-        "description": "Configure your Ontario Energy Pricing integration.\n\nThis integration fetches real-time data directly from IESO (Independent Electricity System Operator):\n- Current LMP (Locational Marginal Price) - updated every 5 minutes\n- Global Adjustment\n- Total Rate (LMP + GA + Admin Fee)",
-        "data": {
-          "location": "Your Location (e.g., Oakville, ON)",
-          "admin_fee": "Admin Fee (¢/kWh)"
-        }
-      }
-    },
-    "error": {
-      "invalid_auth": "Invalid API key - please check your GridStatus API key",
-      "cannot_connect": "Cannot connect to IESO - check network connectivity",
-      "unknown": "Unexpected error - please check logs"
-    },
-    "abort": {
-      "already_configured": "Ontario Energy Pricing is already configured for {location}. Remove the existing configuration to add a new one."
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Configure Ontario Energy Pricing",
-        "description": "Adjust your energy pricing settings",
-        "data": {
-          "admin_fee": "Admin Fee (¢/kWh)"
-        }
-      }
-    }
-  },
-  "entity": {
-    "sensor": {
-      "current_lmp": {
-        "name": "Current LMP"
-      },
-      "hour_average_lmp": {
-        "name": "Hour Average LMP"
-      },
-      "global_adjustment": {
-        "name": "Global Adjustment"
-      },
-      "total_rate": {
-        "name": "Total Rate"
-      }
-    }
-  }
+	"config": {
+		"title": "Ontario Energy Pricing",
+		"step": {
+			"user": {
+				"title": "Ontario Energy Pricing Setup",
+				"description": "Configure your Ontario Energy Pricing integration.\n\nThis integration fetches real-time data directly from IESO (Independent Electricity System Operator):\n- Current LMP (Locational Marginal Price) - updated every 5 minutes\n- Global Adjustment\n- Total Rate (LMP + GA + Admin Fee)",
+				"data": {
+					"location": "Your Location (e.g., Oakville, ON)",
+					"admin_fee": "Admin Fee (¢/kWh)"
+				}
+			}
+		},
+		"error": {
+			"cannot_connect": "Cannot connect to IESO - check network connectivity",
+			"unknown": "Unexpected error - please check logs"
+		},
+		"abort": {
+			"already_configured": "Ontario Energy Pricing is already configured for {location}. Remove the existing configuration to add a new one."
+		}
+	},
+	"options": {
+		"step": {
+			"init": {
+				"title": "Configure Ontario Energy Pricing",
+				"description": "Adjust your energy pricing settings",
+				"data": {
+					"admin_fee": "Admin Fee (¢/kWh)"
+				}
+			}
+		}
+	},
+	"entity": {
+		"sensor": {
+			"current_lmp": {
+				"name": "Current LMP"
+			},
+			"hour_average_lmp": {
+				"name": "Hour Average LMP"
+			},
+			"global_adjustment": {
+				"name": "Global Adjustment"
+			},
+			"total_rate": {
+				"name": "Total Rate"
+			}
+		}
+	}
 }
