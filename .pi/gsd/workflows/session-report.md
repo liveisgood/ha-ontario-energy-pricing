@@ -1,4 +1,4 @@
-<gsd-version v="1.12.4" />
+<gsd-version v="2.1.1" />
 
 <gsd-execute>
   <display msg="Loading session context..." />

@@ -2,143 +2,154 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 02 of 2 (core entities) ✅
+current_phase: "01 of 1 (ieso-direct-refactor) 🔄"
 status: executing
-stopped_at: Phase 3 context gathered (Configuration & Error Handling)
-last_updated: "2026-04-12T17:41:56.541Z"
+stopped_at: "Architecture Pivot: Refactoring to IESO Direct"
+last_updated: "2026-04-12T19:00:00Z"
 progress:
   total_phases: 4
-  completed_phases: 2
-  total_plans: 5
-  completed_plans: 3
+  completed_phases: 3
+previous_architecture:
+  complete: true
+  tag: "pre-ieso-direct-arch"
+  data_source: "gridstatus-api"
+refactor:
+  status: "in_progress"
+  reason: "IESO direct XML provides real-time data without API key"
+  estimated_effort: "2-3 hours"
+  actual_progress: "~70%"
 ---
 
 # State: Ontario Energy Pricing HACS Integration
 
-**Current Phase:** 02 of 2 (core entities) ✅  
-**Phase Status:** VALIDATED  
-**Last Updated:** 2026-04-12  
+## 🔄 ARCHITECTURE PIVOT IN PROGRESS
+
+**Current Status:** Refactoring from GridStatus API → IESO Direct XML  
+**Reason:** Discovery that IESO provides real-time 5-min LMP data via public XML  
+**Tag:** `pre-ieso-direct-arch` preserves old implementation  
+**Progress:** ~70% complete
 
 ---
 
-## Phase Status
+## Why The Pivot?
 
-| Phase | Status | Progress | Notes |
-|-------|--------|----------|-------|
-| 1 - Data Layer | ✅ Complete | 100% | 6 files, 595 lines |
-| 2 - Core Entities | ✅ **VALIDATED** | 100% | 7 files + 5 tests (600 lines) |
-| 3 - Configuration | ○ Not Started | 0% | Ready to start |
-| 4 - HACS & Polish | ○ Not Started | 0% | Blocked on Phase 3 |
-
----
-
-## Completed Work
-
-### Phase 1: Data Layer ✅
-
-- `__init__.py` - Module init
-- `const.py` - Domain constants, URLs, config keys
-- `exceptions.py` - 6 custom exception classes
-- `models.py` - 4 frozen dataclasses with validation
-- `gridstatus.py` - GridStatus API client (186 lines)
-- `ieso.py` - IESO XML client (156 lines)
-
-### Phase 2: Core Entities ✅ + VALIDATED
-
-**Implementation:**
-
-- `__init__.py` - Component setup/unload/reload handlers
-- `coordinator.py` - 3 DataUpdateCoordinators with proper intervals
-- `sensor.py` - 4 CoordinatorEntity sensors with MONETARY device class
-- `config_flow.py` - 3-step config flow with zone discovery
-- `manifest.json` - Integration metadata
-- `translations/en.json` - UI strings
-
-**Validation:**
-
-- `tests/conftest.py` - 200 lines, shared fixtures
-- `tests/test_init.py` - 71 lines, lifecycle tests
-- `tests/test_coordinator.py` - 88 lines, coordinator tests
-- `tests/test_sensor.py` - 112 lines, sensor tests
-- `tests/test_config_flow.py` - 129 lines, config flow tests
-
-**Requirements Covered:** 18/18 (100%)
-
-- SENS-01 to SENS-06: ✅ All sensor requirements tested
-- CONF-01, CONF-02, CONF-05, CONF-06: ✅ Config flow tested
-- SCH-01 to SCH-04: ✅ Scheduling tested
-- LOC-01 to LOC-04: ✅ Location/zone tested
-- ERR-01, ERR-02: ✅ Error handling tested
+| Aspect | GridStatus API | IESO Direct XML |
+|--------|---------------|-----------------|
+| **Authentication** | API key required | ✅ None (public) |
+| **Data freshness** | 11+ months old | ✅ Real-time 5-min |
+| **Reliability** | External dependency | ✅ Direct from source |
+| **Complexity** | Complex query params | ✅ Simple HTTP GET |
 
 ---
 
-## Next Actions
+## ✅ COMPLETED REFACTOR WORK
 
-### Phase 3 (Configuration & Error Handling)
+### Files Updated (2026-04-12)
 
-**Requirements:** CONF-03, CONF-04, ERR-01 to ERR-04
-**Goal:** Robust config management and comprehensive error handling
+1. **NEW: `ieso_lmp.py`** - Real-time LMP client using IESO direct XML
+   - Fetches `PUB_RealtimeOntarioZonalPrice.xml`
+   - Parses 5-minute intervals
+   - Converts $/MWh → ¢/kWh
+   - Returns `IESOLMPData` with intervals and hour average
 
-1. Add config validation in config_flow.py
-2. Add error handling in coordinators
-3. Add retry logic for API failures
-4. Add tests for edge cases
+2. **NEW: `ieso_ga.py`** - Renamed from `ieso.py`
+   - Global Adjustment client (unchanged)
+
+3. **UPDATED: `coordinator.py`** - Unified coordinator
+   - Single coordinator for LMP + GA
+   - 4.5-minute update interval
+   - Simplified data model
+
+4. **UPDATED: `config_flow.py`** - Removed API key and zone selection
+   - Simplified to location + admin fee only
+   - No API key required!
+
+5. **UPDATED: `sensor.py`** - Simplified sensors
+   - Current LMP (latest interval)
+   - Hour Average LMP
+   - Global Adjustment
+   - Total Rate
+
+6. **UPDATED: `const.py`** - Updated intervals and URLs
+
+7. **UPDATED: `__init__.py`** - Unified coordinator setup
+
+8. **UPDATED: `exceptions.py`** - Removed GridStatus exceptions
+
+9. **UPDATED: `models.py`** - Simplified models
+
+10. **UPDATED: `translations/en.json`** - Removed API key references
+
+11. **DELETED: `gridstatus.py`** - No longer needed
 
 ---
 
-## Key Information
+## 📋 REMAINING WORK
 
-### API Key (for development)
+- [ ] Update manifest.json (check dependencies)
+- [ ] Create new test suite
+- [ ] Update README.md
+- [ ] Update HACS.json
+- [ ] Verify hacs.json and services.yaml
+- [ ] Final integration test
 
-**Stored securely in Home Assistant - never commit to git.**
+---
+
+## New Architecture
 
 ### Data Sources
+- **LMP (Real-time):** `https://reports-public.ieso.ca/public/RealtimeOntarioZonalPrice/PUB_RealtimeOntarioZonalPrice.xml`
+- **GA (Weekly):** `http://reports.ieso.ca/public/GlobalAdjustment/PUB_GlobalAdjustment.xml`
 
-- **LMP:** `https://api.gridstatus.io/v1/datasets/ieso_lmp_real_time_5_min_all`
-- **GA:** `http://reports.ieso.ca/public/GlobalAdjustment/PUB_GlobalAdjustment.xml`
+### Update Intervals
+- **LMP:** 4.5 minutes (was 1 hour) - Prices change every 5 minutes
+- **GA:** Weekly (unchanged) - Settled monthly
 
-### Test Infrastructure
-
-- **Framework:** pytest with pytest-asyncio
-- **Total Tests:** 20+ across 5 files
-- **Coverage:** 100% of Phase 2 requirements
-- **Line Count:** 600 lines of test code
-
----
-
-## Project Reference
-
-| Artifact | Location |
-|----------|----------|
-| Project | `.planning/PROJECT.md` |
-| Requirements | `.planning/REQUIREMENTS.md` (29 req) |
-| Roadmap | `.planning/ROADMAP.md` |
-| Phase 2 Validation | `.planning/phases/02-core-entities/02-VALIDATION.md` |
-| Tests | `tests/` |
-| Code | `custom_components/ontario_energy_pricing/` |
+### Unit Conversion
+- IESO returns: **$51.98/MWh** (current example)
+- Convert to: **5.20 ¢/kWh** (divide by 10)
+- Your rate: **~12.65 ¢/kWh** (LMP + GA + Admin Fee)
 
 ---
 
-## Session Continuity
+## Test Results
 
-- **Last session:** 2026-04-12
-- **Validation:** Phase 2 test suite completed
-- **Status:** Executing Phase 02
-- **Next:** Discuss or plan Phase 3
+**Latest IESO Direct Test (2026-04-12 14:00 EST):**
+```
+Delivery Date: 2026-04-12
+Delivery Hour: 14:00
+Hour Average LMP: 51.98 $/MWh (5.20 ¢/kWh)
+Valid Intervals: 10 of 12
+GA Rate: 0.0600 $/kWh (6.00 ¢/kWh)
+
+YOUR TOTAL RATE:
+  Admin Fee: 1.45 ¢/kWh
+  LMP (avg): 5.20 ¢/kWh
+  GA: +6.00 ¢/kWh
+  TOTAL: 12.65 ¢/kWh ($0.1265/kWh)
+```
 
 ---
 
-*State file updated: 2026-04-12 after Phase 2 validation*
+## Key Changes
+
+| Before | After |
+|--------|-------|
+| GridStatus API key required | ✅ No API key |
+| Zone selection needed | ✅ Ontario-wide zonal price |
+| 3-step config flow | ✅ 1-step simple config |
+| Multiple coordinators | ✅ Single unified coordinator |
+| Hourly updates | ✅ 4.5-minute updates |
+| Historic data (11mo old) | ✅ Real-time current data |
 
 ---
-## Session: 2026-04-12
 
-**Stopped at:** Phase 3 context gathered (Configuration & Error Handling)
-**Resume file:** .planning/phases/03-configuration-error-handling/03-CONTEXT.md
+## Related Memory Cards
+- [[ieso-direct-lmp-discovery]] - Full technical details
+- [[ontario-energy-pricing-domain]] - May need update
 
 ---
-## Session: 2026-04-12 (continued)
 
-**Phase 3 Complete:** Configuration & Error Handling
-**Commit:** 4b4afbd
-**Status:** All 6 requirements covered
+*Pivot started: 2026-04-12 after GridStatus returned 11-month-old data*  
+*Committed to: Simpler, faster, no API key approach*  
+*Status: ~70% complete, core refactor done*

@@ -47,9 +47,10 @@ async def async_setup_entry(
         LOGGER.debug("Refresh service called")
         await entry.runtime_data.async_refresh()
 
-    entry.async_on_unload(
-        hass.services.async_register(DOMAIN, "refresh", async_refresh_service)
+    service_remove = hass.services.async_register(
+        DOMAIN, "refresh", async_refresh_service
     )
+    entry.async_on_unload(service_remove)
 
     LOGGER.debug("Setup complete for entry: %s", entry.entry_id)
     return True
