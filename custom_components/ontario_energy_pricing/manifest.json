@@ -3,6 +3,7 @@
 	"name": "Ontario Energy Pricing",
 	"codeowners": ["@dmalloc"],
 	"config_flow": true,
+	"diagnostics": true,
 	"dependencies": [],
 	"documentation": "https://codeberg.org/dmalloc/ha-ontario-energy-pricing",
 	"iot_class": "cloud_polling",

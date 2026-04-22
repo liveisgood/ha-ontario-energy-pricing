@@ -98,8 +98,8 @@ rules:
     status: exempt
     comment: Service integration, not device-based
   diagnostics:
-    status: todo
-    comment: Could add diagnostics to show IESO API status
+    status: done
+    comment: Added diagnostics.py with ConfigEntry diagnostics showing coordinator status and data
   discovery-update-info:
     status: exempt
     comment: Service integration, no device discovery
