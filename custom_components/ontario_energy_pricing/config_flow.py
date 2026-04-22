@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Final
 
-import voluptuous as vol  # type: ignore
-from homeassistant.config_entries import ConfigFlow, config_entries  # type: ignore
-from homeassistant.core import callback  # type: ignore
-from homeassistant.data_entry_flow import FlowResult  # type: ignore
+import voluptuous as vol
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
+from homeassistant.core import callback
+from homeassistant.data_entry_flow import FlowResult
 
-from .const import CONF_ADMIN_FEE, CONF_LOCATION, DOMAIN
+from .const import CONF_ADMIN_FEE, CONF_LOCATION
 
 
 def _validate_non_negative_float(value: float | int | str) -> float:
@@ -23,7 +23,7 @@ def _validate_non_negative_float(value: float | int | str) -> float:
         raise vol.Invalid(f"Invalid value: {err}")
 
 
-STEP_USER_DATA_SCHEMA = vol.Schema(
+STEP_USER_DATA_SCHEMA: Final = vol.Schema(
     {
         vol.Required(CONF_LOCATION): str,
         vol.Required(CONF_ADMIN_FEE, default=0.0): _validate_non_negative_float,
@@ -35,7 +35,6 @@ class OntarioEnergyPricingConfigFlow(ConfigFlow):
     """Handle a config flow for Ontario Energy Pricing."""
 
     VERSION = 1
-    DOMAIN = DOMAIN
 
     def __init__(self) -> None:
         """Initialize the config flow."""
@@ -45,7 +44,7 @@ class OntarioEnergyPricingConfigFlow(ConfigFlow):
     @staticmethod
     @callback
     def async_get_options_flow(
-        config_entry: config_entries.ConfigEntry,
+        config_entry: ConfigEntry,
     ) -> OntarioEnergyPricingOptionsFlow:
         """Get the options flow for this handler."""
         return OntarioEnergyPricingOptionsFlow(config_entry)
@@ -70,7 +69,6 @@ class OntarioEnergyPricingConfigFlow(ConfigFlow):
         if user_input is not None:
             self._admin_fee = user_input[CONF_ADMIN_FEE]
             self._location = user_input[CONF_LOCATION]
-
             # Create entry - no API key or zone needed!
             data = {
                 CONF_ADMIN_FEE: self._admin_fee,
@@ -88,10 +86,10 @@ class OntarioEnergyPricingConfigFlow(ConfigFlow):
         )
 
 
-class OntarioEnergyPricingOptionsFlow(config_entries.OptionsFlow):
+class OntarioEnergyPricingOptionsFlow(OptionsFlow):
     """Handle options flow for Ontario Energy Pricing."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+    def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
         self.config_entry = config_entry
 

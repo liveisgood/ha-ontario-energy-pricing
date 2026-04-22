@@ -166,5 +166,5 @@ rules:
     status: done
     comment: Uses async_get_clientsession for shared session
   strict-typing:
-    status: todo
-    comment: Has type hints but not strict mypy compliance
+    status: done
+    comment: Fully type annotated with TYPE_CHECKING blocks, strict mypy enabled via mypy.ini
