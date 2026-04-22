@@ -18,12 +18,10 @@ from .coordinator import OntarioEnergyPricingCoordinator
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
-type EnergyPricingConfigEntry = ConfigEntry[OntarioEnergyPricingCoordinator]
-
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: EnergyPricingConfigEntry,
+    entry: ConfigEntry,
 ) -> bool:
     """Set up Ontario Energy Pricing from a config entry."""
     LOGGER.debug("Setting up entry: %s", entry.entry_id)
@@ -58,18 +56,17 @@ async def async_setup_entry(
 
 async def async_unload_entry(
     hass: HomeAssistant,
-    entry: EnergyPricingConfigEntry,
+    entry: ConfigEntry,
 ) -> bool:
     """Unload a config entry."""
     LOGGER.debug("Unloading entry: %s", entry.entry_id)
-
     # Unload platforms
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
 async def config_entry_update_listener(
     hass: HomeAssistant,
-    entry: EnergyPricingConfigEntry,
+    entry: ConfigEntry,
 ) -> None:
     """Handle options update."""
     await hass.config_entries.async_reload(entry.entry_id)

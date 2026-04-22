@@ -9,7 +9,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 
-from .const import CONF_ADMIN_FEE, CONF_LOCATION
+from .const import CONF_ADMIN_FEE, CONF_LOCATION, DOMAIN
 
 
 def _validate_non_negative_float(value: float | int | str) -> float:
@@ -35,6 +35,7 @@ class OntarioEnergyPricingConfigFlow(ConfigFlow):
     """Handle a config flow for Ontario Energy Pricing."""
 
     VERSION = 1
+    DOMAIN = DOMAIN
 
     def __init__(self) -> None:
         """Initialize the config flow."""
