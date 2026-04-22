@@ -1,0 +1,170 @@
+rules:
+  # Bronze
+  action-setup:
+    status: done
+    comment: Service registered in async_setup_entry
+  appropriate-polling:
+    status: done
+    comment: 270 second polling interval for LMP (5-min data, updates hourly)
+  brands:
+    status: todo
+    comment: Need to submit icon to home-assistant/brands repo
+  common-modules:
+    status: done
+    comment: Uses coordinator pattern with ieso_lmp and ieso_ga modules
+  config-flow-test-coverage:
+    status: done
+    comment: 100% test coverage for config flow
+  config-flow:
+    status: done
+    comment: Full config flow with options flow for admin fee
+  data-description:
+    status: done
+    comment: Uses data_description in translations for location field
+  data_entry:
+    status: done
+    comment: Uses ConfigEntry.data for location and admin_fee
+  dependency-transparency:
+    status: done
+    comment: Uses standard HA dependencies (aiohttp, voluptuous)
+  docs-actions:
+    status: done
+    comment: Manual refresh service documented in README
+  docs-high-level-description:
+    status: done
+    comment: README provides overview of IESO LMP + GA
+  docs-installation-instructions:
+    status: done
+    comment: HACS and manual install steps in README
+  docs-removal-instructions:
+    status: todo
+    comment: Need to add removal instructions to README
+  entity-event-setup:
+    status: done
+    comment: Entities use CoordinatorEntity pattern
+  entity-unique-id:
+    status: done
+    comment: All entities have unique_id based on translation_key
+  has-entity-name:
+    status: done
+    comment: _attr_has_entity_name = True on base sensor class
+  runtime-data:
+    status: todo
+    comment: Uses legacy hass.data pattern, should migrate to ConfigEntry.runtime_data
+  test-before-configure:
+    status: done
+    comment: Config flow validates non-negative admin fee
+  test-before-setup:
+    status: exempt
+    comment: IESO API has no auth required, will fail gracefully on network error
+  unique-config-entry:
+    status: done
+    comment: Config flow prevents duplicate entries via _async_current_entries
+
+  # Silver
+  action-exceptions:
+    status: done
+    comment: Service handles errors via coordinator
+  config-entry-unloading:
+    status: done
+    comment: Proper async_unload_entry implementation
+  docs-configuration-parameters:
+    status: done
+    comment: All config parameters documented (location, admin_fee)
+  docs-installation-parameters:
+    status: done
+    comment: Admin fee parameter documented
+  entity-unavailable:
+    status: done
+    comment: Coordinator handles availability state
+  integration-owner:
+    status: done
+    comment: codeowners set to @dmalloc
+  log-when-unavailable:
+    status: done
+    comment: Uses LOGGER.debug consistently
+  parallel-updates:
+    status: done
+    comment: Single coordinator prevents parallel updates
+  reauthentication-flow:
+    status: exempt
+    comment: IESO API is public, no authentication required
+  test-coverage:
+    status: todo
+    comment: Need to run coverage report, target 95%+
+
+  # Gold
+  devices:
+    status: exempt
+    comment: Service integration, not device-based
+  diagnostics:
+    status: todo
+    comment: Could add diagnostics to show IESO API status
+  discovery-update-info:
+    status: exempt
+    comment: Service integration, no device discovery
+  discovery:
+    status: exempt
+    comment: Service integration, no device discovery
+  docs-data-update:
+    status: done
+    comment: Documented LMP update interval (5-min)
+  docs-examples:
+    status: done
+    comment: Automation examples in README
+  docs-known-limitations:
+    status: done
+    comment: HOEP->LMP transition documented
+  docs-supported-devices:
+    status: exempt
+    comment: Service integration, not device-based
+  docs-supported-functions:
+    status: done
+    comment: Sensor table documents all entities
+  docs-troubleshooting:
+    status: todo
+    comment: Should add troubleshooting section
+  docs-use-cases:
+    status: done
+    comment: Automation examples provided
+  dynamic-devices:
+    status: exempt
+    comment: Service integration, no devices
+  entity-category:
+    status: exempt
+    comment: Sensors are primary entities
+  entity-device-class:
+    status: done
+    comment: Uses SensorDeviceClass.MONETARY
+  entity-disabled-by-default:
+    status: exempt
+    comment: All sensors are primary
+  entity-translations:
+    status: done
+    comment: All entities use translations in en.json
+  exception-translations:
+    status: todo
+    comment: Exceptions could use translations
+  icon-translations:
+    status: done
+    comment: Uses _attr_icon on sensor classes
+  reconfiguration-flow:
+    status: todo
+    comment: Has options flow but not full reconfigure flow
+  repair-issues:
+    status: exempt
+    comment: API errors are transient, no user intervention needed
+  stale-devices:
+    status: exempt
+    comment: Service integration, no devices
+
+  # Platinum
+  async-dependency:
+    status: done
+    comment: Fully async using aiohttp
+  inject-websession:
+    status: done
+    comment: Uses async_get_clientsession for shared session
+  strict-typing:
+    status: todo
+    comment: Has type hints but not strict mypy compliance

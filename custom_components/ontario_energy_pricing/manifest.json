@@ -1,7 +1,7 @@
 {
 	"domain": "ontario_energy_pricing",
 	"name": "Ontario Energy Pricing",
-	"codeowners": [],
+	"codeowners": ["@dmalloc"],
 	"config_flow": true,
 	"dependencies": [],
 	"documentation": "https://codeberg.org/dmalloc/ha-ontario-energy-pricing",

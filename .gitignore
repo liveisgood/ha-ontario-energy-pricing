@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.dmypy.json
+
+# Home Assistant
+venv/
+config/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Planning (personal)
+.planning/
+.pi/
+.pi-lens/
+
+# Standalone test scripts (not part of HA integration)
+test_data_retrieval.py
+test_ieso_current.py
+test_ieso_refactor.py
+REFACTOR_SUMMARY.md
+TEST_SUITE_SUMMARY.md
+WRAPUP.md
