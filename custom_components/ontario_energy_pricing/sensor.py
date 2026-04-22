@@ -2,36 +2,28 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from homeassistant.components.sensor import (  # type: ignore
+from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.core import HomeAssistant  # type: ignore
-from homeassistant.helpers.entity_platform import AddEntitiesCallback  # type: ignore
-from homeassistant.helpers.typing import ConfigEntryType  # type: ignore
-from homeassistant.helpers.update_coordinator import CoordinatorEntity  # type: ignore
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import (
-    CURRENCY_CAD,
-    DOMAIN,
-    UNIT_KWH,
-)
+from .const import CURRENCY_CAD, DOMAIN, UNIT_KWH
 from .coordinator import OntarioEnergyPricingCoordinator
-
-if TYPE_CHECKING:
-    pass  # type: ignore
+from typing import Any
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntryType,
+    entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Ontario Energy Pricing sensors from a config entry."""
-    coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
+    coordinator: OntarioEnergyPricingCoordinator = entry.runtime_data
 
     entities: list[SensorEntity] = [
         OntarioCurrentLMPSensor(coordinator),
@@ -78,15 +70,16 @@ class OntarioCurrentLMPSensor(OntarioEnergyPricingSensor):
         return None
 
     @property
-    def extra_state_attributes(self) -> dict[str, float | str | None]:
+    def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return sensor attributes."""
-        attrs: dict[str, float | str | None] = {}
-        if self.coordinator.data:
-            attrs["lmp_mwh"] = self.coordinator.data.current_lmp_mwh
-            attrs["delivery_hour"] = self.coordinator.data.delivery_hour
-            attrs["delivery_date"] = self.coordinator.data.delivery_date
-            attrs["trade_month"] = self.coordinator.data.trade_month
-        return attrs
+        if not self.coordinator.data:
+            return None
+        return {
+            "lmp_mwh": self.coordinator.data.current_lmp_mwh,
+            "delivery_hour": self.coordinator.data.delivery_hour,
+            "delivery_date": self.coordinator.data.delivery_date,
+            "trade_month": self.coordinator.data.trade_month,
+        }
 
 
 class OntarioHourAverageLMPSensor(OntarioEnergyPricingSensor):
@@ -100,7 +93,7 @@ class OntarioHourAverageLMPSensor(OntarioEnergyPricingSensor):
 
     @property
     def native_value(self) -> float | None:
-        """Return the current LMP price in ¢/kWh."""
+        """Return the hour average LMP price in ¢/kWh."""
         if self.coordinator.data:
             return self.coordinator.data.hour_average_lmp_kwh
         return None
@@ -123,12 +116,11 @@ class OntarioGlobalAdjustmentSensor(OntarioEnergyPricingSensor):
         return None
 
     @property
-    def extra_state_attributes(self) -> dict[str, str | None]:
+    def extra_state_attributes(self) -> dict[str, str | None] | None:
         """Return sensor attributes."""
-        attrs: dict[str, str | None] = {}
-        if self.coordinator.data:
-            attrs["trade_month"] = self.coordinator.data.trade_month
-        return attrs
+        if not self.coordinator.data:
+            return None
+        return {"trade_month": self.coordinator.data.trade_month}
 
 
 class OntarioTotalRateSensor(OntarioEnergyPricingSensor):
@@ -148,12 +140,12 @@ class OntarioTotalRateSensor(OntarioEnergyPricingSensor):
         return None
 
     @property
-    def extra_state_attributes(self) -> dict[str, float | None]:
+    def extra_state_attributes(self) -> dict[str, float] | None:
         """Return sensor attributes with component values."""
-        if self.coordinator.data:
-            return {
-                "lmp_rate": self.coordinator.data.current_lmp_kwh,
-                "ga_rate": self.coordinator.data.global_adjustment,
-                "admin_fee": self.coordinator.data.admin_fee,
-            }
-        return {}
+        if not self.coordinator.data:
+            return None
+        return {
+            "lmp_rate": self.coordinator.data.current_lmp_kwh,
+            "ga_rate": self.coordinator.data.global_adjustment,
+            "admin_fee": self.coordinator.data.admin_fee,
+        }

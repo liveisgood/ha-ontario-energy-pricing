@@ -49,8 +49,8 @@ rules:
     status: done
     comment: _attr_has_entity_name = True on base sensor class
   runtime-data:
-    status: todo
-    comment: Uses legacy hass.data pattern, should migrate to ConfigEntry.runtime_data
+    status: done
+    comment: Migrated to ConfigEntry.runtime_data with type alias EnergyPricingConfigEntry
   test-before-configure:
     status: done
     comment: Config flow validates non-negative admin fee
