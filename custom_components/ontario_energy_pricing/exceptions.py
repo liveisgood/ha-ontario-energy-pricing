@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-# type: ignore[import]  # noqa: E501,F401
 # Home Assistant imports - unavailable outside HA runtime
-from homeassistant.exceptions import (  # type: ignore[import]  # noqa: E501  # pylint: disable=import-error
+from homeassistant.exceptions import (  # type: ignore[import]  # noqa: E501,F401
     ConfigEntryError,
     HomeAssistantError,
 )
@@ -26,45 +25,6 @@ class OntarioEnergyPricingError(HomeAssistantError):
         self.translation_placeholders = translation_placeholders or {}
 
 
-class GridStatusAuthError(ConfigEntryError):
-    """Exception raised when GridStatus API authentication fails."""
-
-    def __init__(self, message: str = "Authentication failed") -> None:
-        """Initialize the exception."""
-        super().__init__(message)
-        self.translation_key = "auth_error"
-
-
-class GridStatusAPIError(OntarioEnergyPricingError):
-    """Exception raised when GridStatus API returns an error."""
-
-    def __init__(
-        self,
-        message: str,
-        status_code: int | None = None,
-    ) -> None:
-        """Initialize the exception."""
-        super().__init__(
-            message=message,
-            translation_key="api_error",
-            translation_placeholders={
-                "status_code": str(status_code) if status_code else "unknown"
-            },
-        )
-        self.status_code = status_code
-
-
-class GridStatusConnectionError(OntarioEnergyPricingError):
-    """Exception raised when connection to GridStatus API fails."""
-
-    def __init__(self, message: str = "Failed to connect to GridStatus API") -> None:
-        """Initialize the exception."""
-        super().__init__(
-            message=message,
-            translation_key="connection_error",
-        )
-
-
 class IESOXMLParseError(OntarioEnergyPricingError):
     """Exception raised when IESO XML parsing fails."""
 
@@ -81,20 +41,28 @@ class IESOXMLParseError(OntarioEnergyPricingError):
         self.xml_snippet = xml_snippet
 
 
-class ZoneNotFoundError(OntarioEnergyPricingError):
-    """Exception raised when no matching zone is found for a location."""
+class IESOLMPError(OntarioEnergyPricingError):
+    """Exception raised when IESO LMP fetch or parse fails."""
 
     def __init__(
         self,
-        location: str,
-        available_zones: list[str] | None = None,
+        message: str = "Failed to fetch IESO LMP data",
+        xml_snippet: str | None = None,
     ) -> None:
         """Initialize the exception."""
-        message = f"No zone found for location: {location}"
         super().__init__(
             message=message,
-            translation_key="zone_not_found",
-            translation_placeholders={"location": location},
+            translation_key="lmp_fetch_error",
         )
-        self.location = location
-        self.available_zones = available_zones or []
+        self.xml_snippet = xml_snippet
+
+
+class IESOConnectionError(OntarioEnergyPricingError):
+    """Exception raised when connection to IESO fails."""
+
+    def __init__(self, message: str = "Failed to connect to IESO") -> None:
+        """Initialize the exception."""
+        super().__init__(
+            message=message,
+            translation_key="ieso_connection_error",
+        )

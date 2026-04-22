@@ -1,4 +1,4 @@
 refresh:
   name: Refresh
-  description: Manually refresh all sensor data from APIs
+  description: Manually refresh all sensor data from IESO
   fields: {}

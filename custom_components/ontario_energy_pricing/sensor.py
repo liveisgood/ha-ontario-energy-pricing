@@ -15,57 +15,29 @@ from homeassistant.helpers.typing import ConfigEntryType  # type: ignore
 from homeassistant.helpers.update_coordinator import CoordinatorEntity  # type: ignore
 
 from .const import (
-    ATTR_PREVIOUS_RATE,
-    ATTR_TIMESTAMP,
-    ATTR_TRADE_MONTH,
-    ATTR_ZONE,
     CURRENCY_CAD,
     DOMAIN,
-    SENSOR_GLOBAL_ADJUSTMENT,
-    SENSOR_LMP_24H_AVG,
-    SENSOR_LMP_CURRENT,
-    SENSOR_TOTAL_RATE,
     UNIT_KWH,
 )
-from .coordinator import (
-    GlobalAdjustmentCoordinator,
-    LMP24hAverageCoordinator,
-    LMPCoordinator,
-)
+from .coordinator import OntarioEnergyPricingCoordinator
 
 if TYPE_CHECKING:
     pass  # type: ignore
 
 
-def async_setup_entry(
+async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntryType,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Ontario Energy Pricing sensors from a config entry."""
-    entry_data = hass.data[DOMAIN][config_entry.entry_id]
-    api_key = entry_data["api_key"]
-    zone = entry_data["zone"]
-    admin_fee = entry_data["admin_fee"]
+    coordinator = hass.data[DOMAIN][config_entry.entry_id]["coordinator"]
 
-    # Create coordinators
-    lmp_coordinator = LMPCoordinator(hass, api_key, zone)
-    lmp_24h_coordinator = LMP24hAverageCoordinator(hass, api_key, zone)
-    ga_coordinator = GlobalAdjustmentCoordinator(hass)
-
-    # Store coordinators for service access
-    hass.data[DOMAIN][config_entry.entry_id]["coordinators"] = [
-        lmp_coordinator,
-        lmp_24h_coordinator,
-        ga_coordinator,
-    ]
-
-    # Create sensors
     entities: list[SensorEntity] = [
-        OntarioLMPCurrentPriceSensor(lmp_coordinator),
-        OntarioLMP24hAverageSensor(lmp_24h_coordinator),
-        OntarioGlobalAdjustmentSensor(ga_coordinator),
-        OntarioTotalRateSensor(lmp_coordinator, ga_coordinator, admin_fee),
+        OntarioCurrentLMPSensor(coordinator),
+        OntarioHourAverageLMPSensor(coordinator),
+        OntarioGlobalAdjustmentSensor(coordinator),
+        OntarioTotalRateSensor(coordinator),
     ]
     async_add_entities(entities)
 
@@ -80,9 +52,7 @@ class OntarioEnergyPricingSensor(CoordinatorEntity, SensorEntity):
 
     def __init__(
         self,
-        coordinator: LMPCoordinator
-        | LMP24hAverageCoordinator
-        | GlobalAdjustmentCoordinator,
+        coordinator: OntarioEnergyPricingCoordinator,
         translation_key: str,
     ) -> None:
         """Initialize the sensor."""
@@ -91,65 +61,49 @@ class OntarioEnergyPricingSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{DOMAIN}_{translation_key}"
 
 
-class OntarioLMPCurrentPriceSensor(OntarioEnergyPricingSensor):
-    """Sensor for current LMP price."""
+class OntarioCurrentLMPSensor(OntarioEnergyPricingSensor):
+    """Sensor for current LMP price (latest 5-min interval)."""
 
     _attr_icon = "mdi:lightning-bolt"
 
-    def __init__(self, coordinator: LMPCoordinator) -> None:
+    def __init__(self, coordinator: OntarioEnergyPricingCoordinator) -> None:
         """Initialize the current LMP sensor."""
-        super().__init__(coordinator, SENSOR_LMP_CURRENT)
-        self._lmp_coordinator = coordinator
+        super().__init__(coordinator, "current_lmp")
 
     @property
     def native_value(self) -> float | None:
-        """Return the current LMP price."""
+        """Return the current LMP price in ¢/kWh."""
         if self.coordinator.data:
-            return self.coordinator.data.price
+            return self.coordinator.data.current_lmp_kwh
         return None
 
     @property
-    def extra_state_attributes(self) -> dict[str, str | float | None]:
+    def extra_state_attributes(self) -> dict[str, float | str | None]:
         """Return sensor attributes."""
-        attrs: dict[str, str | float | None] = {}
+        attrs: dict[str, float | str | None] = {}
         if self.coordinator.data:
-            attrs[ATTR_TIMESTAMP] = (
-                self.coordinator.data.interval_start.isoformat()
-                if self.coordinator.data.interval_start
-                else None
-            )
-            attrs[ATTR_ZONE] = self.coordinator.data.zone
-            attrs[ATTR_PREVIOUS_RATE] = self._lmp_coordinator.previous_price
+            attrs["lmp_mwh"] = self.coordinator.data.current_lmp_mwh
+            attrs["delivery_hour"] = self.coordinator.data.delivery_hour
+            attrs["delivery_date"] = self.coordinator.data.delivery_date
+            attrs["trade_month"] = self.coordinator.data.trade_month
         return attrs
 
 
-class OntarioLMP24hAverageSensor(OntarioEnergyPricingSensor):
-    """Sensor for 24-hour LMP average."""
+class OntarioHourAverageLMPSensor(OntarioEnergyPricingSensor):
+    """Sensor for hourly average LMP."""
 
     _attr_icon = "mdi:chart-line"
 
-    def __init__(self, coordinator: LMP24hAverageCoordinator) -> None:
-        """Initialize the 24h average sensor."""
-        super().__init__(coordinator, SENSOR_LMP_24H_AVG)
+    def __init__(self, coordinator: OntarioEnergyPricingCoordinator) -> None:
+        """Initialize the hour average LMP sensor."""
+        super().__init__(coordinator, "hour_average_lmp")
 
     @property
     def native_value(self) -> float | None:
-        """Return the 24-hour average LMP price."""
-        if isinstance(self.coordinator, LMP24hAverageCoordinator):
-            return self.coordinator.get_24h_average()
-        return None
-
-    @property
-    def extra_state_attributes(self) -> dict[str, str | None]:
-        """Return sensor attributes."""
-        attrs: dict[str, str | None] = {}
+        """Return the current LMP price in ¢/kWh."""
         if self.coordinator.data:
-            attrs[ATTR_TIMESTAMP] = (
-                self.coordinator.data.end_time.isoformat()
-                if self.coordinator.data.end_time
-                else None
-            )
-        return attrs
+            return self.coordinator.data.hour_average_lmp_kwh
+        return None
 
 
 class OntarioGlobalAdjustmentSensor(OntarioEnergyPricingSensor):
@@ -157,23 +111,23 @@ class OntarioGlobalAdjustmentSensor(OntarioEnergyPricingSensor):
 
     _attr_icon = "mdi:cash"
 
-    def __init__(self, coordinator: GlobalAdjustmentCoordinator) -> None:
+    def __init__(self, coordinator: OntarioEnergyPricingCoordinator) -> None:
         """Initialize the GA sensor."""
-        super().__init__(coordinator, SENSOR_GLOBAL_ADJUSTMENT)
+        super().__init__(coordinator, "global_adjustment")
 
     @property
     def native_value(self) -> float | None:
-        """Return the Global Adjustment rate."""
-        if isinstance(self.coordinator, GlobalAdjustmentCoordinator):
-            return self.coordinator.current_rate
+        """Return the Global Adjustment rate in ¢/kWh."""
+        if self.coordinator.data:
+            return self.coordinator.data.global_adjustment
         return None
 
     @property
     def extra_state_attributes(self) -> dict[str, str | None]:
         """Return sensor attributes."""
         attrs: dict[str, str | None] = {}
-        if isinstance(self.coordinator, GlobalAdjustmentCoordinator):
-            attrs[ATTR_TRADE_MONTH] = self.coordinator.trade_month
+        if self.coordinator.data:
+            attrs["trade_month"] = self.coordinator.data.trade_month
         return attrs
 
 
@@ -182,41 +136,24 @@ class OntarioTotalRateSensor(OntarioEnergyPricingSensor):
 
     _attr_icon = "mdi:scale-balance"
 
-    def __init__(
-        self,
-        lmp_coordinator: LMPCoordinator,
-        ga_coordinator: GlobalAdjustmentCoordinator,
-        admin_fee: float,
-    ) -> None:
+    def __init__(self, coordinator: OntarioEnergyPricingCoordinator) -> None:
         """Initialize the total rate sensor."""
-        super().__init__(lmp_coordinator, SENSOR_TOTAL_RATE)
-        self._ga_coordinator = ga_coordinator
-        self._admin_fee = admin_fee
+        super().__init__(coordinator, "total_rate")
 
     @property
     def native_value(self) -> float | None:
         """Calculate total rate from LMP + GA + Admin Fee."""
-        lmp_price = None
         if self.coordinator.data:
-            lmp_price = self.coordinator.data.price
-        ga_rate = None
-        if self._ga_coordinator.data:
-            ga_rate = self._ga_coordinator.data.rate
-        if lmp_price is not None and ga_rate is not None:
-            return lmp_price + ga_rate + self._admin_fee
+            return self.coordinator.data.total_rate
         return None
 
     @property
     def extra_state_attributes(self) -> dict[str, float | None]:
         """Return sensor attributes with component values."""
-        lmp_price = None
         if self.coordinator.data:
-            lmp_price = self.coordinator.data.price
-        ga_rate = None
-        if self._ga_coordinator.data:
-            ga_rate = self._ga_coordinator.data.rate
-        return {
-            "lmp_rate": lmp_price,
-            "ga_rate": ga_rate,
-            "admin_fee": self._admin_fee,
-        }
+            return {
+                "lmp_rate": self.coordinator.data.current_lmp_kwh,
+                "ga_rate": self.coordinator.data.global_adjustment,
+                "admin_fee": self.coordinator.data.admin_fee,
+            }
+        return {}

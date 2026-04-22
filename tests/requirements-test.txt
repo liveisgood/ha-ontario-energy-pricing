@@ -1,0 +1,19 @@
+# Test requirements for Ontario Energy Pricing integration
+# Install with: pip install -r requirements-test.txt
+
+# Core testing framework
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-homeassistant-custom-component>=0.13.0
+
+# Home Assistant (for local testing if available)
+homeassistant>=2024.1.0
+
+# HTTP client (same as main integration)
+aiohttp>=3.9.0
+
+# XML parsing (same as main integration)
+# (xml.etree.ElementTree is in stdlib)
+
+# Utility
+freezegun>=1.2.0

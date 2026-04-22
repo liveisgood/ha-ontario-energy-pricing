@@ -9,10 +9,9 @@ DOMAIN: Final = "ontario_energy_pricing"
 
 LOGGER = logging.getLogger(__package__)
 
-# GridStatus API Configuration
-GRIDSTATUS_API_BASE_URL: Final = "https://api.gridstatus.io/v1"
-GRIDSTATUS_DATASET_LMP: Final = "ieso_lmp_real_time_5_min_all"
-GRIDSTATUS_DEFAULT_TIMEOUT: Final = 30  # seconds
+# IESO LMP (Real-Time Ontario Zonal Price) Configuration
+IESO_LMP_URL: Final = "https://reports-public.ieso.ca/public/RealtimeOntarioZonalPrice/PUB_RealtimeOntarioZonalPrice.xml"
+IESO_LMP_NAMESPACE: Final = "http://www.ieso.ca/schema"
 
 # IESO Global Adjustment Configuration
 IESO_GA_URL: Final = (
@@ -23,9 +22,10 @@ IESO_GA_NAMESPACE: Final = "http://www.ieso.ca/schema"
 IESO_DEFAULT_TIMEOUT: Final = 30  # seconds
 
 # Update Intervals (seconds)
-UPDATE_INTERVAL_LMP: Final = 3600  # 1 hour
+# LMP updates every 5 minutes, we fetch every 4 minutes 30 seconds to be safe
+UPDATE_INTERVAL_LMP: Final = 270  # 4 minutes 30 seconds
 UPDATE_INTERVAL_GA: Final = 604800  # 1 week (check for new month)
-UPDATE_INTERVAL_24H_AVG: Final = 86400  # 24 hours (daily at midnight)
+UPDATE_INTERVAL_TOTAL_RATE: Final = 270  # 4 minutes 30 seconds (depends on LMP)
 
 # Default Values
 DEFAULT_ZONE: Final = "ONTARIO"

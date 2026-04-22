@@ -1,4 +1,5 @@
 """Test fixtures for Ontario Energy Pricing integration."""
+
 from __future__ import annotations
 
 from collections.abc import Generator
@@ -7,27 +8,20 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from pytest import FixtureRequest
 
 # Home Assistant imports
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 # Integration imports
-from custom_components.ontario_energy_pricing.const import DOMAIN
-from custom_components.ontario_energy_pricing.models import (
-    GlobalAdjustment,
-    LMPCurrentPrice,
-    LMPDataPoint,
-    LMPHistoricalData,
+from custom_components.ontario_energy_pricing.coordinator import (
+    OntarioEnergyPricingData,
 )
+from custom_components.ontario_energy_pricing.ieso_ga import GlobalAdjustment
 
 # Test constants
-TEST_API_KEY = "test_api_key_12345"
-TEST_ZONE = "OAKVILLE"
 TEST_LOCATION = "Oakville, ON"
-TEST_ADMIN_FEE = 0.025  # $/kWh
+TEST_ADMIN_FEE = 1.45  # ¢/kWh
 
 
 @pytest.fixture
@@ -48,8 +42,6 @@ def mock_config_entry() -> ConfigEntry:
     entry = MagicMock(spec=ConfigEntry)
     entry.entry_id = "test_entry_id"
     entry.data = {
-        "api_key": TEST_API_KEY,
-        "zone": TEST_ZONE,
         "admin_fee": TEST_ADMIN_FEE,
         "location": TEST_LOCATION,
     }
@@ -62,139 +54,203 @@ def mock_config_entry() -> ConfigEntry:
 def mock_entry_data() -> dict[str, Any]:
     """Return mock entry data dict."""
     return {
-        "api_key": TEST_API_KEY,
-        "zone": TEST_ZONE,
         "admin_fee": TEST_ADMIN_FEE,
         "location": TEST_LOCATION,
     }
 
 
 @pytest.fixture
-def sample_lmp_price() -> LMPCurrentPrice:
-    """Create a sample LMPCurrentPrice instance."""
-    return LMPCurrentPrice(
-        price=0.0895,  # $/kWh
-        timestamp=datetime(2026, 4, 12, 14, 30, tzinfo=timezone.utc),
-        zone=TEST_ZONE,
-        previous_price=0.0872,
-    )
+def sample_ieso_lmp_data() -> dict[str, Any]:
+    """Create sample IESO LMP XML data."""
+    return {
+        "delivery_date": "2026-04-12",
+        "delivery_hour": 14,
+        "created_at": datetime(2026, 4, 12, 13, 22, 48, tzinfo=timezone.utc),
+        "hour_average_mwh": 53.88,
+        "hour_average_kwh": 5.388,
+        "current_lmp_kwh": 5.241,  # Latest interval
+        "intervals": [
+            {
+                "interval": 1,
+                "lmp_mwh": 56.55,
+                "lmp_kwh": 5.655,
+                "flag": "DSO-RD",
+            },
+            {
+                "interval": 2,
+                "lmp_mwh": 52.41,
+                "lmp_kwh": 5.241,
+                "flag": "DSO-RD",
+            },
+            {
+                "interval": 3,
+                "lmp_mwh": 51.23,
+                "lmp_kwh": 5.123,
+                "flag": "DSO-RD",
+            },
+        ],
+    }
 
 
 @pytest.fixture
-def sample_lmp_history() -> LMPHistoricalData:
-    """Create a sample LMPHistoricalData instance with 24h of data."""
-    base_time = datetime(2026, 4, 11, 0, 0, tzinfo=timezone.utc)
-    data_points = []
+def sample_ieso_xml() -> str:
+    """Sample IESO LMP XML response."""
+    return """<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="http://www.ieso.ca/schema">
+  <DocHeader>
+    <DocTitle>Real-Time 5-min Ontario Zonal Energy Price Report</DocTitle>
+    <CreatedAt>2026-04-12T13:22:48</CreatedAt>
+  </DocHeader>
+  <DocBody>
+    <DeliveryDate>2026-04-12</DeliveryDate>
+    <DeliveryHour>14</DeliveryHour>
+    <ZonalPrice>
+      <Interval>1</Interval>
+      <LmpCap>56.55</LmpCap>
+      <Flag>DSO-RD</Flag>
+    </ZonalPrice>
+    <ZonalPrice>
+      <Interval>2</Interval>
+      <LmpCap>52.41</LmpCap>
+      <Flag>DSO-RD</Flag>
+    </ZonalPrice>
+    <ZonalPrice>
+      <Interval>3</Interval>
+      <LmpCap>51.23</LmpCap>
+      <Flag>DSO-RD</Flag>
+    </ZonalPrice>
+    <AveragePrice>
+      <LmpCap>53.88</LmpCap>
+    </AveragePrice>
+  </DocBody>
+</Document>"""
 
-    # Create 288 5-minute intervals (24 hours)
-    for i in range(288):
-        timestamp = base_time.replace(minute=i * 5)
-        # Simulate daily cycle: higher during day, lower at night
-        hour = timestamp.hour
-        if 9 <= hour <= 17:  # Peak hours
-            price = 0.12 + (i % 10) / 1000  # ~0.12-0.13 $/kWh
-        elif 7 <= hour <= 22:  # Shoulder hours
-            price = 0.08 + (i % 10) / 1000  # ~0.08-0.09 $/kWh
-        else:  # Off-peak
-            price = 0.04 + (i % 5) / 1000  # ~0.04-0.05 $/kWh
 
-        data_points.append(LMPDataPoint(timestamp=timestamp, price=price))
-
-    return LMPHistoricalData(data_points=data_points, zone=TEST_ZONE)
+@pytest.fixture
+def sample_ieso_ga_xml() -> str:
+    """Sample IESO GA XML response."""
+    return """<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="http://www.ieso.ca/schema">
+  <PublishInfo>
+    <PublishDateTime>2026-04-01T00:00:00</PublishDateTime>
+  </PublishInfo>
+  <GlobalAdjustment>
+    <TradeMonth>2026-04</TradeMonth>
+    <FirstEstimateRate>0.06</FirstEstimateRate>
+  </GlobalAdjustment>
+</Document>"""
 
 
 @pytest.fixture
 def sample_global_adjustment() -> GlobalAdjustment:
     """Create a sample GlobalAdjustment instance."""
     return GlobalAdjustment(
-        rate=0.0485,  # $/kWh
+        rate=0.06,  # $/kWh
         trade_month="2026-04",
         last_updated=datetime(2026, 4, 1, 0, 0, tzinfo=timezone.utc),
     )
 
 
 @pytest.fixture
-def mock_gridstatus_client(sample_lmp_price: LMPCurrentPrice, sample_lmp_history: LMPHistoricalData) -> Generator[AsyncMock, None, None]:
-    """Create a mock GridStatusClient."""
-    client = AsyncMock()
-    client.async_get_current_lmp = AsyncMock(return_value=sample_lmp_price)
-    client.async_get_24h_history = AsyncMock(return_value=sample_lmp_history)
-    client.async_get_available_zones = AsyncMock(return_value=[
-        "OAKVILLE",
-        "TORONTO",
-        "OTTAWA",
-        "ONTARIO",
-    ])
-
-    with patch(
-        "custom_components.ontario_energy_pricing.coordinator.GridStatusClient",
-        return_value=client,
-    ):
-        with patch(
-            "custom_components.ontario_energy_pricing.config_flow.GridStatusClient",
-            return_value=client,
-        ):
-            yield client
+def sample_coordinator_data(
+    sample_ieso_lmp_data: dict[str, Any],
+    sample_global_adjustment: GlobalAdjustment,
+) -> OntarioEnergyPricingData:
+    """Create sample unified coordinator data."""
+    return OntarioEnergyPricingData(
+        current_lmp_kwh=sample_ieso_lmp_data["current_lmp_kwh"],
+        hour_average_lmp_kwh=sample_ieso_lmp_data["hour_average_kwh"],
+        current_lmp_mwh=sample_ieso_lmp_data["hour_average_mwh"],
+        delivery_hour=sample_ieso_lmp_data["delivery_hour"],
+        delivery_date=sample_ieso_lmp_data["delivery_date"],
+        global_adjustment=sample_global_adjustment.rate * 100,  # Convert to cents
+        trade_month=sample_global_adjustment.trade_month,
+        admin_fee=TEST_ADMIN_FEE,
+        intervals=sample_ieso_lmp_data["intervals"],
+    )
 
 
 @pytest.fixture
-def mock_ieso_client(sample_global_adjustment: GlobalAdjustment) -> Generator[AsyncMock, None, None]:
-    """Create a mock IESOGlobalAdjustmentClient."""
-    client = AsyncMock()
-    client.async_get_current_rate = AsyncMock(return_value=sample_global_adjustment)
+def mock_ieso_lmp_client(
+    sample_ieso_lmp_data: dict[str, Any],
+) -> Generator[AsyncMock, None, None]:
+    """Create a mock IESOLMPClient."""
+    from custom_components.ontario_energy_pricing.ieso_lmp import (
+        IESOLMPClient,
+        IESOLMPData,
+        IESOZonalPrice,
+    )
+
+    mock_data = MagicMock(spec=IESOLMPData)
+    mock_data.delivery_date = sample_ieso_lmp_data["delivery_date"]
+    mock_data.delivery_hour = sample_ieso_lmp_data["delivery_hour"]
+    mock_data.created_at = sample_ieso_lmp_data["created_at"]
+    mock_data.hour_average_mwh = sample_ieso_lmp_data["hour_average_mwh"]
+    mock_data.hour_average_kwh = sample_ieso_lmp_data["hour_average_kwh"]
+    mock_data.current_lmp_kwh = sample_ieso_lmp_data["current_lmp_kwh"]
+    mock_data.intervals = [
+        MagicMock(
+            spec=IESOZonalPrice,
+            interval=i["interval"],
+            lmp_mwh=i["lmp_mwh"],
+            lmp_kwh=i["lmp_kwh"],
+            flag=i["flag"],
+        )
+        for i in sample_ieso_lmp_data["intervals"]
+    ]
+
+    mock_client = AsyncMock(spec=IESOLMPClient)
+    mock_client.async_get_current_lmp = AsyncMock(return_value=mock_data)
 
     with patch(
-        "custom_components.ontario_energy_pricing.coordinator.IESOGlobalAdjustmentClient",
-        return_value=client,
+        "custom_components.ontario_energy_pricing.ieso_lmp.IESOLMPClient",
+        return_value=mock_client,
     ):
-        yield client
+        yield mock_client
+
+
+@pytest.fixture
+def mock_ieso_ga_client(
+    sample_global_adjustment: GlobalAdjustment,
+) -> Generator[AsyncMock, None, None]:
+    """Create a mock IESOGlobalAdjustmentClient."""
+    from custom_components.ontario_energy_pricing.ieso_ga import (
+        IESOGlobalAdjustmentClient,
+    )
+
+    mock_client = AsyncMock(spec=IESOGlobalAdjustmentClient)
+    mock_client.async_get_current_rate = AsyncMock(
+        return_value=sample_global_adjustment
+    )
+
+    with patch(
+        "custom_components.ontario_energy_pricing.ieso_ga.IESOGlobalAdjustmentClient",
+        return_value=mock_client,
+    ):
+        yield mock_client
+
+
+@pytest.fixture
+def mock_coordinator(
+    sample_coordinator_data: OntarioEnergyPricingData,
+) -> Generator[MagicMock, None, None]:
+    """Create a mock unified coordinator."""
+    from custom_components.ontario_energy_pricing.coordinator import (
+        OntarioEnergyPricingCoordinator,
+    )
+
+    mock = MagicMock(spec=OntarioEnergyPricingCoordinator)
+    mock.data = sample_coordinator_data
+    mock.last_update_success = True
+    yield mock
 
 
 @pytest.fixture
 def mock_async_get_clientsession() -> Generator[MagicMock, None, None]:
     """Mock async_get_clientsession to return a mock session."""
     mock_session = AsyncMock()
-
     with patch(
         "custom_components.ontario_energy_pricing.coordinator.async_get_clientsession",
         return_value=mock_session,
     ) as mock:
         yield mock
-
-
-@pytest.fixture
-def mock_async_get_clientsession_config_flow() -> Generator[MagicMock, None, None]:
-    """Mock async_get_clientsession in config_flow module."""
-    mock_session = AsyncMock()
-
-    with patch(
-        "custom_components.ontario_energy_pricing.config_flow.async_get_clientsession",
-        return_value=mock_session,
-    ) as mock:
-        yield mock
-
-
-@pytest.fixture
-def mock_coordinators(
-    sample_lmp_price: LMPCurrentPrice,
-    sample_lmp_history: LMPHistoricalData,
-    sample_global_adjustment: GlobalAdjustment,
-) -> Generator[MagicMock, None, None]:
-    """Create mock coordinators for sensor tests."""
-    lmp_coordinator = MagicMock()
-    lmp_coordinator.data = sample_lmp_price
-    lmp_coordinator.previous_price = 0.0872
-
-    lmp_24h_coordinator = MagicMock()
-    lmp_24h_coordinator.data = sample_lmp_history
-
-    ga_coordinator = MagicMock()
-    ga_coordinator.data = sample_global_adjustment
-    ga_coordinator.current_rate = sample_global_adjustment.rate
-    ga_coordinator.trade_month = sample_global_adjustment.trade_month
-
-    yield {
-        "lmp": lmp_coordinator,
-        "lmp_24h": lmp_24h_coordinator,
-        "ga": ga_coordinator,
-    }

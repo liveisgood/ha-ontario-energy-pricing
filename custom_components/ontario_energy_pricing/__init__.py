@@ -14,6 +14,7 @@ from homeassistant.const import Platform  # type: ignore
 from homeassistant.core import HomeAssistant, ServiceCall  # type: ignore
 
 from .const import DOMAIN, LOGGER
+from .coordinator import OntarioEnergyPricingCoordinator
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
@@ -22,15 +23,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Ontario Energy Pricing from a config entry."""
     LOGGER.debug("Setting up entry: %s", entry.entry_id)
 
-    # Store entry data for coordinators
+    # Create unified coordinator
+    admin_fee = entry.data.get("admin_fee", 0.0)
+    coordinator = OntarioEnergyPricingCoordinator(hass, admin_fee)
+
+    # Store data for sensors
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
-        "api_key": entry.data["api_key"],
-        "admin_fee": entry.data.get("admin_fee", 0.0),
+        "admin_fee": admin_fee,
         "location": entry.data["location"],
-        "zone": entry.data.get("zone", "ONTARIO"),
-        "coordinators": [],  # Will be populated by sensor platform
+        "coordinator": coordinator,
     }
+
+    # Do first refresh to get initial data
+    await coordinator.async_config_entry_first_refresh()
 
     # Forward to sensor platform
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -40,9 +46,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         """Handle refresh service call."""
         LOGGER.debug("Refresh service called")
         entry_data = hass.data[DOMAIN][entry.entry_id]
-        coordinators = entry_data.get("coordinators", [])
-        LOGGER.debug("Refreshing %d coordinators", len(coordinators))
-        for coordinator in coordinators:
+        coordinator = entry_data.get("coordinator")
+        if coordinator:
             await coordinator.async_refresh()
 
     hass.services.async_register(DOMAIN, "refresh", async_refresh_service)

@@ -1,21 +1,17 @@
 """Tests for configuration flow."""
+
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
+
 import pytest
 
 from custom_components.ontario_energy_pricing.config_flow import (
     CONF_ADMIN_FEE,
-    CONF_API_KEY,
     CONF_LOCATION,
-    CONF_ZONE,
     OntarioEnergyPricingConfigFlow,
 )
 from custom_components.ontario_energy_pricing.const import DOMAIN
-from custom_components.ontario_energy_pricing.exceptions import (
-    GridStatusAuthError,
-    GridStatusConnectionError,
-)
 
 
 @pytest.fixture
@@ -23,10 +19,8 @@ def mock_flow(mock_hass) -> OntarioEnergyPricingConfigFlow:
     """Create a mock config flow instance."""
     flow = OntarioEnergyPricingConfigFlow()
     flow.hass = mock_hass
-    flow._api_key = None
     flow._admin_fee = 0.0
     flow._location = None
-    flow._available_zones = []
     return flow
 
 
@@ -40,90 +34,116 @@ async def test_config_flow_user_step(mock_flow) -> None:
 
 @pytest.mark.asyncio
 async def test_config_flow_valid_input(mock_flow) -> None:
-    """Test valid user input stores data."""
+    """Test valid user input stores data and creates entry."""
     user_input = {
-        CONF_API_KEY: "test_api_key",
-        CONF_ADMIN_FEE: 0.025,
-        CONF_LOCATION: "Oakville",
+        CONF_ADMIN_FEE: 1.45,
+        CONF_LOCATION: "Oakville, ON",
     }
-    with patch.object(mock_flow, "async_step_api_test"):
-        await mock_flow.async_step_user(user_input=user_input)
-    assert mock_flow._api_key == "test_api_key"
-    assert mock_flow._admin_fee == 0.025
-    assert mock_flow._location == "Oakville"
 
+    result = await mock_flow.async_step_user(user_input=user_input)
 
-@pytest.mark.asyncio
-async def test_config_flow_api_test_success(mock_flow) -> None:
-    """Test successful API test creates entry."""
-    mock_flow._api_key = "test_key"
-    mock_flow._admin_fee = 0.025
-    mock_flow._location = "Oakville"
-    with patch("custom_components.ontario_energy_pricing.config_flow.async_get_clientsession"):
-        with patch("custom_components.ontario_energy_pricing.config_flow.GridStatusClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.async_get_available_zones = AsyncMock(
-                return_value=["OAKVILLE", "TORONTO", "ONTARIO"],
-            )
-            mock_client_class.return_value = mock_client
-            result = await mock_flow.async_step_api_test(user_input=None)
     assert result["type"] == "create_entry"
-    assert result["data"][CONF_ZONE] == "OAKVILLE"
+    assert result["data"][CONF_ADMIN_FEE] == 1.45
+    assert result["data"][CONF_LOCATION] == "Oakville, ON"
 
 
 @pytest.mark.asyncio
-async def test_config_flow_auth_error(mock_flow) -> None:
-    """Test API test shows error on auth failure."""
-    mock_flow._api_key = "bad_key"
-    mock_flow._admin_fee = 0.025
-    mock_flow._location = "Oakville"
-    with patch("custom_components.ontario_energy_pricing.config_flow.async_get_clientsession"):
-        with patch("custom_components.ontario_energy_pricing.config_flow.GridStatusClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.async_get_available_zones = AsyncMock(
-                side_effect=GridStatusAuthError("Invalid key"),
-            )
-            mock_client_class.return_value = mock_client
-            result = await mock_flow.async_step_api_test(user_input=None)
-    assert result["type"] == "form"
-    assert result["step_id"] == "api_test"
+async def test_config_flow_no_api_key_required(mock_flow) -> None:
+    """Test that config flow works without API key (IESO direct)."""
+    user_input = {
+        CONF_ADMIN_FEE: 2.0,
+        CONF_LOCATION: "Toronto",
+    }
+
+    result = await mock_flow.async_step_user(user_input=user_input)
+
+    assert result["type"] == "create_entry"
+    # Should only have admin_fee and location
+    assert "admin_fee" in result["data"]
+    assert "location" in result["data"]
+    assert "api_key" not in result["data"]  # Not needed for IESO direct
 
 
 @pytest.mark.asyncio
-async def test_zone_matching_exact(mock_flow) -> None:
-    """Test exact zone matching."""
-    mock_flow._location = "Oakville"
-    zones = ["OAKVILLE", "TORONTO", "OTTAWA"]
-    matched = mock_flow._match_zone_to_location(zones)
-    assert matched == "OAKVILLE"
+async def test_config_flow_zero_admin_fee(mock_flow) -> None:
+    """Test config flow accepts zero admin fee."""
+    user_input = {
+        CONF_ADMIN_FEE: 0.0,
+        CONF_LOCATION: "Ottawa",
+    }
+
+    result = await mock_flow.async_step_user(user_input=user_input)
+
+    assert result["type"] == "create_entry"
+    assert result["data"][CONF_ADMIN_FEE] == 0.0
 
 
 @pytest.mark.asyncio
-async def test_zone_matching_substring(mock_flow) -> None:
-    """Test substring zone matching."""
-    mock_flow._location = "oakville"
-    zones = ["OAKVILLE_ZONE", "TORONTO", "ONTARIO"]
-    matched = mock_flow._match_zone_to_location(zones)
-    assert matched == "OAKVILLE_ZONE"
+async def test_config_flow_already_configured(mock_hass, mock_config_entry) -> None:
+    """Test that config flow aborts if already configured."""
+    flow = OntarioEnergyPricingConfigFlow()
+    flow.hass = mock_hass
+    flow.hass.data = {DOMAIN: {mock_config_entry.entry_id: {}}}
+
+    # Mock _async_current_entries to return existing entry
+    flow._async_current_entries = MagicMock(return_value=[mock_config_entry])
+
+    result = await flow.async_step_user(user_input=None)
+
+    assert result["type"] == "abort"
 
 
 @pytest.mark.asyncio
 async def test_config_entry_structure(mock_flow) -> None:
-    """Test that created config entry has required data."""
-    mock_flow._api_key = "test_key"
-    mock_flow._admin_fee = 0.025
-    mock_flow._location = "Oakville"
-    with patch("custom_components.ontario_energy_pricing.config_flow.async_get_clientsession"):
-        with patch("custom_components.ontario_energy_pricing.config_flow.GridStatusClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.async_get_available_zones = AsyncMock(
-                return_value=["OAKVILLE", "ONTARIO"],
-            )
-            mock_client_class.return_value = mock_client
-            result = await mock_flow.async_step_api_test(user_input=None)
+    """Test that created config entry has required data fields."""
+    user_input = {
+        CONF_ADMIN_FEE: 1.45,
+        CONF_LOCATION: "Oakville, ON",
+    }
+
+    result = await mock_flow.async_step_user(user_input=user_input)
+
     assert result["type"] == "create_entry"
     data = result["data"]
-    assert CONF_API_KEY in data
+
+    # Required fields
     assert CONF_ADMIN_FEE in data
     assert CONF_LOCATION in data
-    assert CONF_ZONE in data
+
+    # Should NOT have GridStatus-specific fields
+    assert "api_key" not in data
+    assert "zone" not in data
+
+
+@pytest.mark.asyncio
+async def test_options_flow_init(mock_hass, mock_config_entry) -> None:
+    """Test options flow initialization."""
+    from custom_components.ontario_energy_pricing.config_flow import (
+        OntarioEnergyPricingOptionsFlow,
+    )
+
+    options_flow = OntarioEnergyPricingOptionsFlow(mock_config_entry)
+
+    result = await options_flow.async_step_init(user_input=None)
+
+    assert result["type"] == "form"
+    assert result["step_id"] == "init"
+
+
+@pytest.mark.asyncio
+async def test_options_flow_update_admin_fee(mock_hass, mock_config_entry) -> None:
+    """Test updating admin fee in options flow."""
+    from custom_components.ontario_energy_pricing.config_flow import (
+        OntarioEnergyPricingOptionsFlow,
+    )
+
+    options_flow = OntarioEnergyPricingOptionsFlow(mock_config_entry)
+
+    user_input = {
+        CONF_ADMIN_FEE: 2.50,
+    }
+
+    result = await options_flow.async_step_init(user_input=user_input)
+
+    assert result["type"] == "create_entry"
+    assert result["data"][CONF_ADMIN_FEE] == 2.50
