@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Final
 
+from homeassistant.helpers.diagnostics import async_redact_data
+
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
 
-from .coordinator import OntarioEnergyPricingCoordinator
+    from .coordinator import OntarioEnergyPricingCoordinator
 
 # Redact user's location for privacy
 TO_REDACT: Final = {"location"}
@@ -19,8 +21,6 @@ async def async_get_config_entry_diagnostics(
     entry: ConfigEntry,
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
-    from homeassistant.helpers.diagnostics import async_redact_data
-
     coordinator: OntarioEnergyPricingCoordinator = entry.runtime_data
 
     diagnostics: dict[str, Any] = {
