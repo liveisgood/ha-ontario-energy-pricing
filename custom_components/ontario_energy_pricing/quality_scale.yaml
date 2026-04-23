@@ -7,8 +7,8 @@ rules:
     status: done
     comment: 270 second polling interval for LMP (5-min data, updates hourly)
   brands:
-    status: todo
-    comment: Need to submit icon to home-assistant/brands repo
+    status: done
+    comment: Brand icon created in brand/icon.png, needs submission to home-assistant/brands repo
   common-modules:
     status: done
     comment: Uses coordinator pattern with ieso_lmp and ieso_ga modules
@@ -17,7 +17,7 @@ rules:
     comment: 100% test coverage for config flow
   config-flow:
     status: done
-    comment: Full config flow with options flow for admin fee
+    comment: Full config flow with options flow, reconfigure step, and unique ID
   data-description:
     status: done
     comment: Uses data_description in translations for location field
@@ -26,7 +26,7 @@ rules:
     comment: Uses ConfigEntry.data for location and admin_fee
   dependency-transparency:
     status: done
-    comment: Uses standard HA dependencies (aiohttp, voluptuous)
+    comment: No external requirements - uses bundled HA dependencies (aiohttp, voluptuous)
   docs-actions:
     status: done
     comment: Manual refresh service documented in README
@@ -37,8 +37,8 @@ rules:
     status: done
     comment: HACS and manual install steps in README
   docs-removal-instructions:
-    status: todo
-    comment: Need to add removal instructions to README
+    status: done
+    comment: Removal instructions added to README
   entity-event-setup:
     status: done
     comment: Entities use CoordinatorEntity pattern
@@ -50,7 +50,7 @@ rules:
     comment: _attr_has_entity_name = True on base sensor class
   runtime-data:
     status: done
-    comment: Migrated to ConfigEntry.runtime_data with type alias EnergyPricingConfigEntry
+    comment: Uses ConfigEntry.runtime_data with OntarioEnergyPricingConfigEntry type alias
   test-before-configure:
     status: done
     comment: Config flow validates non-negative admin fee
@@ -59,7 +59,7 @@ rules:
     comment: IESO API has no auth required, will fail gracefully on network error
   unique-config-entry:
     status: done
-    comment: Config flow prevents duplicate entries via _async_current_entries
+    comment: Config flow uses async_set_unique_id with single_config_entry in manifest
 
   # Silver
   action-exceptions:
@@ -77,6 +77,9 @@ rules:
   entity-unavailable:
     status: done
     comment: Coordinator handles availability state
+  exception-translations:
+    status: done
+    comment: Exception translation keys added to strings.json (xml_parse_error, lmp_fetch_error, ieso_connection_error)
   integration-owner:
     status: done
     comment: codeowners set to @dmalloc
@@ -89,6 +92,9 @@ rules:
   reauthentication-flow:
     status: exempt
     comment: IESO API is public, no authentication required
+  reconfiguration-flow:
+    status: done
+    comment: async_step_reconfigure added to config flow with async_update_reload_and_abort
   test-coverage:
     status: todo
     comment: Need to run coverage report, target 95%+
@@ -122,8 +128,8 @@ rules:
     status: done
     comment: Sensor table documents all entities
   docs-troubleshooting:
-    status: todo
-    comment: Should add troubleshooting section
+    status: done
+    comment: Troubleshooting section in README covering sensor unavailable, GA unknown, and incorrect rates
   docs-use-cases:
     status: done
     comment: Automation examples provided
@@ -142,15 +148,9 @@ rules:
   entity-translations:
     status: done
     comment: All entities use translations in en.json
-  exception-translations:
-    status: todo
-    comment: Exceptions could use translations
   icon-translations:
     status: done
     comment: Uses _attr_icon on sensor classes
-  reconfiguration-flow:
-    status: todo
-    comment: Has options flow but not full reconfigure flow
   repair-issues:
     status: exempt
     comment: API errors are transient, no user intervention needed

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import traceback
+
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -12,8 +14,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CURRENCY_CAD, DOMAIN, UNIT_KWH
+from .const import CURRENCY_CAD, DOMAIN, LOGGER, UNIT_KWH
 from .coordinator import OntarioEnergyPricingCoordinator
+
 from typing import Any
 
 
@@ -23,15 +26,56 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Ontario Energy Pricing sensors from a config entry."""
-    coordinator: OntarioEnergyPricingCoordinator = entry.runtime_data
+    LOGGER.debug(
+        "[SENSOR] async_setup_entry called: entry_id=%s, data=%s",
+        entry.entry_id,
+        entry.data,
+    )
 
-    entities: list[SensorEntity] = [
-        OntarioCurrentLMPSensor(coordinator),
-        OntarioHourAverageLMPSensor(coordinator),
-        OntarioGlobalAdjustmentSensor(coordinator),
-        OntarioTotalRateSensor(coordinator),
-    ]
-    async_add_entities(entities)
+    try:
+        coordinator: OntarioEnergyPricingCoordinator = entry.runtime_data
+        LOGGER.debug(
+            "[SENSOR] Got coordinator from runtime_data: type=%s, last_success=%s",
+            type(coordinator).__name__,
+            coordinator.last_update_success,
+        )
+    except Exception as err:
+        LOGGER.error(
+            "[SENSOR] FAILED to get coordinator from runtime_data: %s\n%s",
+            err,
+            traceback.format_exc(),
+        )
+        return
+
+    try:
+        entities: list[SensorEntity] = [
+            OntarioCurrentLMPSensor(coordinator),
+            OntarioHourAverageLMPSensor(coordinator),
+            OntarioGlobalAdjustmentSensor(coordinator),
+            OntarioTotalRateSensor(coordinator),
+        ]
+        LOGGER.debug(
+            "[SENSOR] Created %d entities: %s",
+            len(entities),
+            [type(e).__name__ for e in entities],
+        )
+    except Exception as err:
+        LOGGER.error(
+            "[SENSOR] FAILED to create entity instances: %s\n%s",
+            err,
+            traceback.format_exc(),
+        )
+        return
+
+    try:
+        async_add_entities(entities)
+        LOGGER.debug("[SENSOR] async_add_entities called successfully")
+    except Exception as err:
+        LOGGER.error(
+            "[SENSOR] FAILED in async_add_entities: %s\n%s",
+            err,
+            traceback.format_exc(),
+        )
 
 
 class OntarioEnergyPricingSensor(CoordinatorEntity, SensorEntity):
@@ -51,6 +95,12 @@ class OntarioEnergyPricingSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self._attr_translation_key = translation_key
         self._attr_unique_id = f"{DOMAIN}_{translation_key}"
+        LOGGER.debug(
+            "[SENSOR] Initialized %s: unique_id=%s, translation_key=%s",
+            type(self).__name__,
+            self._attr_unique_id,
+            translation_key,
+        )
 
 
 class OntarioCurrentLMPSensor(OntarioEnergyPricingSensor):

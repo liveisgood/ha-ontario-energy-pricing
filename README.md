@@ -166,6 +166,15 @@ Go to **Settings** → **Devices & Services** → **Ontario Energy Pricing** →
 - Verify your **Admin Fee** matches your electricity bill
 - Compare LMP values with [IESO's Market Data](https://www.ieso.ca/market-data)
 
+## Removal
+
+1. Go to **Settings** → **Devices & Services**
+2. Find **Ontario Energy Pricing** and click the ⋮ (menu)
+3. Click **Delete**
+4. Confirm the deletion
+5. (Optional) If you installed manually, remove the `custom_components/ontario_energy_pricing/` folder from your Home Assistant `config/custom_components/` directory
+6. Restart Home Assistant
+
 ## Support
 
 - [Issues](https://github.com/lobstah/ha-ontario-energy-pricing/issues)
