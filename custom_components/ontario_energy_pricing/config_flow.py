@@ -14,27 +14,16 @@ from homeassistant.data_entry_flow import FlowResult
 from .const import CONF_ADMIN_FEE, CONF_LOCATION, DOMAIN, LOGGER
 
 
-def _validate_non_negative_float(value: float | int | str) -> float:
-    """Validate that value is a non-negative float."""
-    try:
-        val = float(value)
-        if val < 0:
-            raise vol.Invalid("Value must be non-negative")
-        return val
-    except (ValueError, TypeError) as err:
-        raise vol.Invalid(f"Invalid value: {err}")
-
-
 STEP_USER_DATA_SCHEMA: Final = vol.Schema(
     {
         vol.Required(CONF_LOCATION): str,
-        vol.Required(CONF_ADMIN_FEE, default=0.0): _validate_non_negative_float,
+        vol.Required(CONF_ADMIN_FEE, default=0.0): vol.Coerce(float),
     }
 )
 
 RECONFIGURE_SCHEMA: Final = vol.Schema(
     {
-        vol.Required(CONF_ADMIN_FEE): _validate_non_negative_float,
+        vol.Required(CONF_ADMIN_FEE): vol.Coerce(float),
         vol.Required(CONF_LOCATION): str,
     }
 )
@@ -208,7 +197,7 @@ class OntarioEnergyPricingConfigFlow(ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(
                     CONF_ADMIN_FEE, default=current_fee
-                ): _validate_non_negative_float,
+                ): vol.Coerce(float),
                 vol.Required(CONF_LOCATION, default=current_location): str,
             }
         )
