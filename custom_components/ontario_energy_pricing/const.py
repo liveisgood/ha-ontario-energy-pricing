@@ -28,10 +28,6 @@ UPDATE_INTERVAL_LMP: Final = 270  # 4 minutes 30 seconds
 # Default Values
 DEFAULT_ADMIN_FEE: Final = 0.0
 
-# Unit of Measurement
-CURRENCY_CAD: Final = "CAD"
-UNIT_KWH: Final = "/kWh"
-
 # Configuration Keys
 CONF_ADMIN_FEE: Final = "admin_fee"
 CONF_LOCATION: Final = "location"

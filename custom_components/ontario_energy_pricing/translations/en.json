@@ -55,6 +55,12 @@
 			}
 		}
 	},
+	"services": {
+		"refresh": {
+			"name": "Refresh",
+			"description": "Manually refresh all sensor data from IESO"
+		}
+	},
 	"exceptions": {
 		"xml_parse_error": {
 			"message": "Failed to parse IESO XML response. The IESO data feed may be temporarily unavailable."

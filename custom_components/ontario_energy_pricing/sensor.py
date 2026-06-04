@@ -6,7 +6,6 @@ import traceback
 from typing import Any
 
 from homeassistant.components.sensor import (
-    SensorDeviceClass,
     SensorEntity,
     SensorStateClass,
 )
@@ -15,9 +14,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CURRENCY_CAD, DOMAIN, LOGGER, UNIT_KWH
+from .const import DOMAIN, LOGGER
 from .coordinator import OntarioEnergyPricingCoordinator
-
 
 
 async def async_setup_entry(
@@ -31,7 +29,6 @@ async def async_setup_entry(
         entry.entry_id,
         entry.data,
     )
-
     try:
         coordinator: OntarioEnergyPricingCoordinator = entry.runtime_data
         LOGGER.debug(
@@ -82,9 +79,8 @@ class OntarioEnergyPricingSensor(CoordinatorEntity, SensorEntity):
     """Base class for Ontario Energy Pricing sensors."""
 
     _attr_has_entity_name = True
-    _attr_device_class = SensorDeviceClass.MONETARY
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_native_unit_of_measurement = f"{CURRENCY_CAD}{UNIT_KWH}"
+    _attr_native_unit_of_measurement = "¢/kWh"
 
     def __init__(
         self,

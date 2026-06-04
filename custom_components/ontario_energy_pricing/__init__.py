@@ -124,6 +124,9 @@ async def async_setup_entry(
         )
         return False
 
+    # Register options update listener so changes reload the integration
+    entry.async_on_unload(entry.add_update_listener(config_entry_update_listener))
+
     LOGGER.debug("[INIT] Setup complete for entry: %s", entry.entry_id)
     return True
 

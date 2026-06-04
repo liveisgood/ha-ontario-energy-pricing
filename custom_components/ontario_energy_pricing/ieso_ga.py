@@ -9,7 +9,7 @@ from typing import Final
 
 import aiohttp
 
-from .const import LOGGER
+from .const import IESO_DEFAULT_TIMEOUT, LOGGER
 from .exceptions import IESOXMLParseError
 from .models import GlobalAdjustment
 
@@ -17,7 +17,6 @@ IESO_GA_URL: Final = (
     "https://reports-public.ieso.ca/public/GlobalAdjustment/PUB_GlobalAdjustment.xml"
 )
 IESO_GA_NAMESPACE: Final = "http://www.ieso.ca/schema"
-IESO_DEFAULT_TIMEOUT: Final = 30
 
 
 class IESOGlobalAdjustmentClient:
