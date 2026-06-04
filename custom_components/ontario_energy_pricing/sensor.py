@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import traceback
+from typing import Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -17,7 +18,6 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import CURRENCY_CAD, DOMAIN, LOGGER, UNIT_KWH
 from .coordinator import OntarioEnergyPricingCoordinator
 
-from typing import Any
 
 
 async def async_setup_entry(

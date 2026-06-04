@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, LOGGER, UPDATE_INTERVAL_LMP
-from .exceptions import IESOXMLParseError
+from .exceptions import IESOLMPError, IESOXMLParseError
 from .ieso_ga import IESOGlobalAdjustmentClient
 from .ieso_lmp import IESOLMPClient
 
@@ -127,9 +127,9 @@ class OntarioEnergyPricingCoordinator(DataUpdateCoordinator):
                 ga_data.rate,
                 ga_data.trade_month,
             )
-        except IESOXMLParseError as err:
+        except (IESOXMLParseError, IESOLMPError) as err:
             LOGGER.error(
-                "[COORDINATOR] IESOXMLParseError during fetch: %s\n%s",
+                "[COORDINATOR] IESO fetch error: %s\n%s",
                 err,
                 traceback.format_exc(),
             )
@@ -147,10 +147,10 @@ class OntarioEnergyPricingCoordinator(DataUpdateCoordinator):
             result = OntarioEnergyPricingData(
                 current_lmp_kwh=lmp_data.current_lmp_kwh,
                 hour_average_lmp_kwh=lmp_data.hour_average_kwh,
-                current_lmp_mwh=lmp_data.hour_average_mwh,
+                current_lmp_mwh=lmp_data.latest_interval.lmp_mwh if lmp_data.latest_interval else 0.0,
                 delivery_hour=lmp_data.delivery_hour,
                 delivery_date=lmp_data.delivery_date,
-                global_adjustment=ga_data.rate * 100,
+                global_adjustment=ga_data.rate / 10,  # IESO GA is in $/MWh, convert to ¢/kWh
                 trade_month=ga_data.trade_month,
                 admin_fee=self._admin_fee,
                 intervals=[

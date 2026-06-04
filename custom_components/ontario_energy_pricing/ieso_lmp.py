@@ -47,8 +47,18 @@ class IESOLMPData:
     delivery_hour: int
     created_at: datetime
     intervals: list[IESOZonalPrice] = field(default_factory=list)
-    hour_average_mwh: float = 0.0
-    hour_average_kwh: float = 0.0
+
+    @property
+    def hour_average_mwh(self) -> float:
+        """Average LMP across all available intervals in $/MWh."""
+        if not self.intervals:
+            return 0.0
+        return sum(i.lmp_mwh for i in self.intervals) / len(self.intervals)
+
+    @property
+    def hour_average_kwh(self) -> float:
+        """Average LMP across all available intervals in ¢/kWh."""
+        return self.hour_average_mwh / 10
 
     @property
     def latest_interval(self) -> IESOZonalPrice | None:

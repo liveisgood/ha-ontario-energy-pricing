@@ -10,7 +10,7 @@ from datetime import datetime
 class GlobalAdjustment:
     """Global Adjustment rate from IESO."""
 
-    rate: float  # $ (not ¢) - straight from XML
+    rate: float  # $/MWh - straight from IESO XML (FirstEstimateRate)
     trade_month: str  # YYYY-MM
     last_updated: datetime
 

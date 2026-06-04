@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import traceback
 
+import voluptuous as vol
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -20,8 +22,36 @@ from .coordinator import OntarioEnergyPricingCoordinator
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
-# Modern type alias for config entry with runtime_data
-type OntarioEnergyPricingConfigEntry = ConfigEntry[OntarioEnergyPricingCoordinator]
+# Modern type alias for config entry with runtime_data type
+OntarioEnergyPricingConfigEntry = ConfigEntry[OntarioEnergyPricingCoordinator]
+
+
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Set up the Ontario Energy Pricing domain.
+
+    Services are registered here per HA best practices:
+    https://developers.home-assistant.io/docs/dev_101_services/
+    """
+    LOGGER.debug("[INIT] async_setup called")
+
+    async def async_refresh_service(call: ServiceCall) -> None:
+        """Handle refresh service call."""
+        LOGGER.debug("[INIT] Refresh service called")
+        # Find the first config entry and refresh its coordinator
+        entries = hass.config_entries.async_entries(DOMAIN)
+        if entries:
+            entry: OntarioEnergyPricingConfigEntry = entries[0]
+            if hasattr(entry, "runtime_data") and entry.runtime_data:
+                await entry.runtime_data.async_request_refresh()
+
+    hass.services.async_register(
+        DOMAIN,
+        "refresh",
+        async_refresh_service,
+        schema=vol.Schema({}),
+    )
+
+    return True
 
 
 async def async_setup_entry(
@@ -94,25 +124,6 @@ async def async_setup_entry(
         )
         return False
 
-    # Register refresh service
-    async def async_refresh_service(call: ServiceCall) -> None:
-        """Handle refresh service call."""
-        LOGGER.debug("[INIT] Refresh service called")
-        await entry.runtime_data.async_refresh()
-
-    try:
-        service_remove = hass.services.async_register(
-            DOMAIN, "refresh", async_refresh_service
-        )
-        entry.async_on_unload(service_remove)
-        LOGGER.debug("[INIT] Refresh service registered")
-    except Exception as err:
-        LOGGER.error(
-            "[INIT] FAILED to register service: %s\n%s",
-            err,
-            traceback.format_exc(),
-        )
-
     LOGGER.debug("[INIT] Setup complete for entry: %s", entry.entry_id)
     return True
 
@@ -123,7 +134,6 @@ async def async_unload_entry(
 ) -> bool:
     """Unload a config entry."""
     LOGGER.debug("[INIT] Unloading entry: %s", entry.entry_id)
-
     # Unload platforms
     try:
         result = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
