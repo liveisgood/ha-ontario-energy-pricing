@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-# Home Assistant imports - unavailable outside HA runtime
-from homeassistant.exceptions import (  # type: ignore[import]  # noqa: E501,F401
-    ConfigEntryError,
-    HomeAssistantError,
-)
+from homeassistant.exceptions import HomeAssistantError
 
 
 class OntarioEnergyPricingError(HomeAssistantError):

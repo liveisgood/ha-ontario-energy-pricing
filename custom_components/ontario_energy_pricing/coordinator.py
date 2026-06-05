@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-import traceback
 from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, LOGGER, UPDATE_INTERVAL_LMP
@@ -45,109 +45,56 @@ class OntarioEnergyPricingCoordinator(DataUpdateCoordinator):
     def __init__(
         self,
         hass: HomeAssistant,
+        entry: ConfigEntry,
         admin_fee: float,
     ) -> None:
         """Initialize the coordinator."""
         self._admin_fee = admin_fee
         self._lmp_client: IESOLMPClient | None = None
         self._ga_client: IESOGlobalAdjustmentClient | None = None
-        LOGGER.debug(
-            "[COORDINATOR] __init__ called: admin_fee=%s, update_interval=%s",
-            admin_fee,
-            UPDATE_INTERVAL_LMP,
-        )
+
         super().__init__(
             hass=hass,
             logger=LOGGER,
             name=f"{DOMAIN}_unified",
+            config_entry=entry,
             update_interval=timedelta(seconds=UPDATE_INTERVAL_LMP),
+            always_update=False,
         )
-        LOGGER.debug("[COORDINATOR] super().__init__ completed successfully")
 
     async def _async_setup(self) -> None:
-        """Set up clients after Home Assistant is ready."""
-        LOGGER.debug("[COORDINATOR] _async_setup: creating aiohttp client session...")
-        try:
-            from homeassistant.helpers.aiohttp_client import async_get_clientsession
+        """Set up clients after Home Assistant is ready.
 
-            session = async_get_clientsession(self.hass)
-            LOGGER.debug(
-                "[COORDINATOR] _async_setup: got client session: %s",
-                type(session).__name__,
-            )
-        except Exception as err:
-            LOGGER.error(
-                "[COORDINATOR] _async_setup FAILED to get client session: %s\n%s",
-                err,
-                traceback.format_exc(),
-            )
-            raise
+        This is called automatically during async_config_entry_first_refresh.
+        """
+        from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-        try:
-            self._lmp_client = IESOLMPClient(session)
-            self._ga_client = IESOGlobalAdjustmentClient(session)
-            LOGGER.debug(
-                "[COORDINATOR] _async_setup: clients created: lmp=%s, ga=%s",
-                type(self._lmp_client).__name__,
-                type(self._ga_client).__name__,
-            )
-        except Exception as err:
-            LOGGER.error(
-                "[COORDINATOR] _async_setup FAILED to create clients: %s\n%s",
-                err,
-                traceback.format_exc(),
-            )
-            raise
+        session = async_get_clientsession(self.hass)
+        self._lmp_client = IESOLMPClient(session)
+        self._ga_client = IESOGlobalAdjustmentClient(session)
 
     async def _async_update_data(self) -> OntarioEnergyPricingData:
         """Fetch all pricing data from IESO."""
-        LOGGER.debug("[COORDINATOR] _async_update_data called")
-
-        if self._lmp_client is None or self._ga_client is None:
-            LOGGER.debug("[COORDINATOR] Clients not initialized, calling _async_setup")
-            await self._async_setup()
-            assert self._lmp_client is not None
-            assert self._ga_client is not None
+        assert self._lmp_client is not None
+        assert self._ga_client is not None
 
         try:
-            LOGGER.debug("[COORDINATOR] Fetching LMP data from IESO...")
-            lmp_task = self._lmp_client.async_get_current_lmp()
-
-            LOGGER.debug("[COORDINATOR] Fetching GA data from IESO...")
-            ga_task = self._ga_client.async_get_current_rate()
-
-            LOGGER.debug("[COORDINATOR] Awaiting both fetches (asyncio.gather)...")
-            lmp_data, ga_data = await asyncio.gather(lmp_task, ga_task)
-
-            LOGGER.debug(
-                "[COORDINATOR] Fetch successful: lmp_date=%s, lmp_hour=%s, lmp_intervals=%d, ga_rate=%s, ga_month=%s",
-                lmp_data.delivery_date,
-                lmp_data.delivery_hour,
-                len(lmp_data.intervals),
-                ga_data.rate,
-                ga_data.trade_month,
+            lmp_data, ga_data = await asyncio.gather(
+                self._lmp_client.async_get_current_lmp(),
+                self._ga_client.async_get_current_rate(),
             )
         except (IESOXMLParseError, IESOLMPError) as err:
-            LOGGER.error(
-                "[COORDINATOR] IESO fetch error: %s\n%s",
-                err,
-                traceback.format_exc(),
-            )
-            raise
+            raise UpdateFailed(f"Error fetching IESO data: {err}") from err
         except Exception as err:
-            LOGGER.error(
-                "[COORDINATOR] UNEXPECTED error during fetch: %s (type=%s)\n%s",
-                err,
-                type(err).__name__,
-                traceback.format_exc(),
-            )
-            raise
+            raise UpdateFailed(f"Unexpected error fetching IESO data: {err}") from err
 
         try:
-            result = OntarioEnergyPricingData(
+            return OntarioEnergyPricingData(
                 current_lmp_kwh=lmp_data.current_lmp_kwh,
                 hour_average_lmp_kwh=lmp_data.hour_average_kwh,
-                current_lmp_mwh=lmp_data.latest_interval.lmp_mwh if lmp_data.latest_interval else 0.0,
+                current_lmp_mwh=lmp_data.latest_interval.lmp_mwh
+                if lmp_data.latest_interval
+                else 0.0,
                 delivery_hour=lmp_data.delivery_hour,
                 delivery_date=lmp_data.delivery_date,
                 global_adjustment=ga_data.rate / 10,  # IESO GA is in $/MWh, convert to ¢/kWh
@@ -163,19 +110,5 @@ class OntarioEnergyPricingCoordinator(DataUpdateCoordinator):
                     for i in lmp_data.intervals
                 ],
             )
-            LOGGER.debug(
-                "[COORDINATOR] Data assembled: lmp_kwh=%s, ga=%s, admin_fee=%s, total=%s, intervals=%d",
-                result.current_lmp_kwh,
-                result.global_adjustment,
-                result.admin_fee,
-                result.total_rate,
-                len(result.intervals),
-            )
-            return result
         except Exception as err:
-            LOGGER.error(
-                "[COORDINATOR] FAILED to assemble OntarioEnergyPricingData: %s\n%s",
-                err,
-                traceback.format_exc(),
-            )
-            raise
+            raise UpdateFailed(f"Error processing IESO data: {err}") from err

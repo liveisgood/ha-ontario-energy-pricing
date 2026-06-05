@@ -25,9 +25,7 @@ STEP_USER_DATA_SCHEMA: Final = vol.Schema(
 
 RECONFIGURE_SCHEMA: Final = vol.Schema(
     {
-        vol.Required(CONF_ADMIN_FEE): vol.All(
-            vol.Coerce(float), vol.Range(min=0)
-        ),
+        vol.Required(CONF_ADMIN_FEE): vol.All(vol.Coerce(float), vol.Range(min=0)),
         vol.Required(CONF_LOCATION): str,
     }
 )
@@ -200,8 +198,8 @@ class OntarioEnergyPricingConfigFlow(ConfigFlow, domain=DOMAIN):
         schema = vol.Schema(
             {
                 vol.Required(CONF_ADMIN_FEE, default=current_fee): vol.All(
-                vol.Coerce(float), vol.Range(min=0)
-            ),
+                    vol.Coerce(float), vol.Range(min=0)
+                ),
                 vol.Required(CONF_LOCATION, default=current_location): str,
             }
         )

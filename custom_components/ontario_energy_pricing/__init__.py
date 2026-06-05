@@ -9,15 +9,13 @@ Provides sensors for Ontario electricity pricing components:
 
 from __future__ import annotations
 
-import traceback
-
 import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 
-from .const import DOMAIN, LOGGER
+from .const import CONF_ADMIN_FEE, DOMAIN, LOGGER
 from .coordinator import OntarioEnergyPricingCoordinator
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
@@ -66,63 +64,24 @@ async def async_setup_entry(
         entry.options,
         entry.version,
     )
-    LOGGER.debug(
-        "[INIT] HA version: %s",
-        getattr(hass.config, "version", "N/A"),
-    )
 
-    # Create unified coordinator
-    admin_fee = entry.data.get("admin_fee", 0.0)
-    LOGGER.debug(
-        "[INIT] Creating coordinator with admin_fee=%s (type=%s)",
-        admin_fee,
-        type(admin_fee).__name__,
+    # Read admin_fee from options (set by options flow) with fallback to data
+    admin_fee = entry.options.get(
+        CONF_ADMIN_FEE, entry.data.get(CONF_ADMIN_FEE, 0.0)
     )
-    try:
-        coordinator = OntarioEnergyPricingCoordinator(hass, admin_fee)
-        LOGGER.debug("[INIT] Coordinator created successfully")
-    except Exception as err:
-        LOGGER.error(
-            "[INIT] FAILED to create coordinator: %s\n%s",
-            err,
-            traceback.format_exc(),
-        )
-        return False
+    LOGGER.debug("[INIT] Creating coordinator with admin_fee=%s", admin_fee)
+
+    coordinator = OntarioEnergyPricingCoordinator(hass, entry, admin_fee)
 
     # Store coordinator in runtime_data (modern pattern)
     entry.runtime_data = coordinator
-    LOGGER.debug("[INIT] Coordinator stored in entry.runtime_data")
 
-    # Do first refresh to get initial data
-    LOGGER.debug("[INIT] Starting async_config_entry_first_refresh...")
-    try:
-        await coordinator.async_config_entry_first_refresh()
-        LOGGER.debug(
-            "[INIT] First refresh complete: success=%s, data=%s",
-            coordinator.last_update_success,
-            coordinator.data,
-        )
-    except Exception as err:
-        LOGGER.error(
-            "[INIT] FAILED first refresh: %s\n%s",
-            err,
-            traceback.format_exc(),
-        )
-        # Don't return False here - HA allows setup to succeed even if first refresh fails
-        LOGGER.debug("[INIT] Continuing setup despite first refresh failure")
+    # Do first refresh - let HA handle ConfigEntryNotReady automatically
+    # if the refresh fails, HA will retry setup later
+    await coordinator.async_config_entry_first_refresh()
 
     # Forward to sensor platform
-    LOGGER.debug("[INIT] Forwarding entry to platforms: %s", PLATFORMS)
-    try:
-        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-        LOGGER.debug("[INIT] Platform forwarding complete")
-    except Exception as err:
-        LOGGER.error(
-            "[INIT] FAILED to forward platforms: %s\n%s",
-            err,
-            traceback.format_exc(),
-        )
-        return False
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Register options update listener so changes reload the integration
     entry.async_on_unload(entry.add_update_listener(config_entry_update_listener))
@@ -136,19 +95,7 @@ async def async_unload_entry(
     entry: OntarioEnergyPricingConfigEntry,
 ) -> bool:
     """Unload a config entry."""
-    LOGGER.debug("[INIT] Unloading entry: %s", entry.entry_id)
-    # Unload platforms
-    try:
-        result = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-        LOGGER.debug("[INIT] Unload platforms result: %s", result)
-        return result
-    except Exception as err:
-        LOGGER.error(
-            "[INIT] FAILED to unload platforms: %s\n%s",
-            err,
-            traceback.format_exc(),
-        )
-        return False
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
 async def config_entry_update_listener(
@@ -156,9 +103,4 @@ async def config_entry_update_listener(
     entry: OntarioEnergyPricingConfigEntry,
 ) -> None:
     """Handle options update."""
-    LOGGER.debug(
-        "[INIT] config_entry_update_listener called for entry=%s, new_options=%s",
-        entry.entry_id,
-        entry.options,
-    )
     await hass.config_entries.async_reload(entry.entry_id)
