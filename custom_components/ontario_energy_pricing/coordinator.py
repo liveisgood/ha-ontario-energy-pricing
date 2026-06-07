@@ -97,7 +97,8 @@ class OntarioEnergyPricingCoordinator(DataUpdateCoordinator):
                 else 0.0,
                 delivery_hour=lmp_data.delivery_hour,
                 delivery_date=lmp_data.delivery_date,
-                global_adjustment=ga_data.rate / 10,  # IESO GA is in $/MWh, convert to ¢/kWh
+                global_adjustment=ga_data.rate
+                / 10,  # IESO GA is in $/MWh, convert to ¢/kWh
                 trade_month=ga_data.trade_month,
                 admin_fee=self._admin_fee,
                 intervals=[

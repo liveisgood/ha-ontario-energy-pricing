@@ -66,9 +66,7 @@ async def async_setup_entry(
     )
 
     # Read admin_fee from options (set by options flow) with fallback to data
-    admin_fee = entry.options.get(
-        CONF_ADMIN_FEE, entry.data.get(CONF_ADMIN_FEE, 0.0)
-    )
+    admin_fee = entry.options.get(CONF_ADMIN_FEE, entry.data.get(CONF_ADMIN_FEE, 0.0))
     LOGGER.debug("[INIT] Creating coordinator with admin_fee=%s", admin_fee)
 
     coordinator = OntarioEnergyPricingCoordinator(hass, entry, admin_fee)
