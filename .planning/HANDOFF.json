@@ -1,0 +1,128 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-06-07T17:16:18Z",
+  "phase": 4,
+  "phase_name": "hacs-polish-and-beyond",
+  "phase_dir": "04-hacs-polish",
+  "plan": 1,
+  "task": 5,
+  "total_tasks": 8,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Fix async_register return None bug",
+      "status": "done",
+      "commit": "b67f221"
+    },
+    {
+      "id": 2,
+      "name": "Fix GA unit conversion (*100 → /10) and hour_average always 0.0",
+      "status": "done",
+      "commit": "b67f221"
+    },
+    {
+      "id": 3,
+      "name": "Fix config flow 500 error (voluptuous_serialize incompatibility)",
+      "status": "done",
+      "commit": "b0c6f24"
+    },
+    {
+      "id": 4,
+      "name": "Full HA compatibility audit: SensorDeviceClass, service translations, update listener, loggers, dedup constants",
+      "status": "done",
+      "commit": "d5d75ca"
+    },
+    {
+      "id": 5,
+      "name": "Fix coordinator missing config_entry, UpdateFailed, first_refresh try/catch, admin_fee options read, always_update",
+      "status": "done",
+      "commit": "49c0ad3"
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 6,
+      "name": "Add predictive/forecast sensors (best_time_to_run, price_forecast_24h)",
+      "status": "not_started"
+    },
+    {
+      "id": 7,
+      "name": "Verify negative LMP values display correctly in HA UI",
+      "status": "not_started",
+      "notes": "Pipeline analysis confirms negatives flow correctly at all layers, but no live HA test done yet"
+    },
+    {
+      "id": 8,
+      "name": "Update README with new sensors and final documentation",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [
+    {
+      "description": "GLM-5.1 model via NVIDIA NIM produces empty tool call results for memex_recall/memex_retro — tools return {} Tool not found",
+      "type": "technical",
+      "workaround": "Use bash/read/write tools directly instead. The memex CLI works fine (v0.3.2), the issue is in the GLM model's tool call formatting being mangled by the NIM chat template"
+    }
+  ],
+  "human_actions_pending": [
+    {
+      "action": "Test the integration in a live Home Assistant instance",
+      "context": "All code changes are pushed to GitHub but haven't been tested in a running HA instance",
+      "blocking": true
+    },
+    {
+      "action": "Consider switching to a different model if tool call issues persist",
+      "context": "GLM-5.1 on NIM has known chat template bugs with tool results; extension has workarounds but some tools still fail",
+      "blocking": false
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Use vol.All(vol.Coerce(float), vol.Range(min=0)) instead of custom validator",
+      "rationale": "voluptuous_serialize can't convert custom Python functions; this gives both validation AND proper UI valueMin hints",
+      "phase": 4
+    },
+    {
+      "decision": "Remove SensorDeviceClass.MONETARY entirely",
+      "rationale": "HA only accepts ISO 4217 codes for MONETARY sensors; CAD/kWh is composite. Unit ¢/kWh without device_class is cleaner",
+      "phase": 4
+    },
+    {
+      "decision": "GA conversion /10 not *100 or raw",
+      "rationale": "Confirmed by IESO XSD schema (FirstEstimateRate in $/MWh), live data (99.1), and conversion math ($/MWh → ¢/kWh = divide by 10)",
+      "phase": 4
+    },
+    {
+      "decision": "Service registration in async_setup not async_setup_entry",
+      "rationale": "Per HA developer docs best practice; services should exist before any config entry is configured",
+      "phase": 4
+    },
+    {
+      "decision": "Let async_config_entry_first_refresh raise ConfigEntryNotReady",
+      "rationale": "HA's retry logic works when the exception propagates; wrapping in try/except prevented retries",
+      "phase": 4
+    },
+    {
+      "decision": "Pass config_entry to DataUpdateCoordinator.__init__",
+      "rationale": "Required for async_config_entry_first_refresh to work properly and for HA to track config entry state",
+      "phase": 4
+    },
+    {
+      "decision": "Raise UpdateFailed from _async_update_data instead of raw exceptions",
+      "rationale": "HA handles UpdateFailed gracefully (marks coordinator as failed, retries); raw exceptions are less well-handled",
+      "phase": 4
+    },
+    {
+      "decision": "Read admin_fee from entry.options with fallback to entry.data",
+      "rationale": "Options flow saves to entry.options; reconfigure saves to entry.data. Both paths must work",
+      "phase": 4
+    }
+  ],
+  "uncommitted_files": [
+    "custom_components/ontario_energy_pricing/__init__.py",
+    "custom_components/ontario_energy_pricing/coordinator.py"
+  ],
+  "next_action": "Design and implement predictive sensors: fetch IESO predispatch/predisp price data for 24h forecast, create 'best_time_to_run' sensor that identifies cheapest window for power-hungry appliances (pool pump, AC)",
+  "context_notes": "User asked about adding predictive sensors to help decide when to run power-hungry appliances (pool pump, AC). Need to research IESO predispatch data availability, design sensor architecture (forecast coordinator, best-time sensor), and implement. All existing bug fixes (21 issues found and fixed) are pushed to GitHub. Negative LMP values confirmed flowing correctly through pipeline. The GLM-5.1 NIM model has tool call issues with memex tools specifically — other tools (bash, read, write, edit) work fine."
+}
