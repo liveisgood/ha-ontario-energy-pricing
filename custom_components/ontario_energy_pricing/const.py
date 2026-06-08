@@ -31,9 +31,16 @@ DEFAULT_ADMIN_FEE: Final = 0.0
 # Configuration Keys
 CONF_ADMIN_FEE: Final = "admin_fee"
 CONF_LOCATION: Final = "location"
+CONF_WINDOW_HOURS: Final = "window_hours"
+CONF_CHEAPEST_WINDOWS: Final = "cheapest_windows"
 
 # Entity IDs
 SENSOR_CURRENT_LMP: Final = "current_lmp"
 SENSOR_HOUR_AVG_LMP: Final = "hour_average_lmp"
 SENSOR_GLOBAL_ADJUSTMENT: Final = "global_adjustment"
 SENSOR_TOTAL_RATE: Final = "total_rate"
+
+# Cheapest window defaults
+DEFAULT_WINDOW_HOURS: Final = 3
+MIN_WINDOW_HOURS: Final = 1
+MAX_WINDOW_HOURS: Final = 24

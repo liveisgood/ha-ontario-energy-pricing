@@ -35,7 +35,7 @@ class IESOZonalPrice:
 
     interval: int  # 1-12
     lmp_mwh: float  # $/MWh
-    lmp_kwh: float  # ¢/kWh (lmp_mwh / 10)
+    lmp_kwh: float  # ¢/kWh  ($/MWh × 100¢/$ ÷ 1000kWh/MWh = $/MWh ÷ 10)
     flag: str  # Dispatch status
 
 
@@ -58,6 +58,7 @@ class IESOLMPData:
     @property
     def hour_average_kwh(self) -> float:
         """Average LMP across all available intervals in ¢/kWh."""
+        # $/MWh × 100¢/$ ÷ 1000kWh/MWh = $/MWh ÷ 10
         return self.hour_average_mwh / 10
 
     @property
@@ -151,7 +152,7 @@ class IESOLMPClient:
                     IESOZonalPrice(
                         interval=interval_num,
                         lmp_mwh=lmp_mwh,
-                        lmp_kwh=lmp_mwh / 10,
+                        lmp_kwh=lmp_mwh / 10,  # $/MWh × 100¢/$ ÷ 1000kWh/MWh
                         flag=flag,
                     )
                 )

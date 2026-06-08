@@ -1,75 +1,100 @@
 {
-	"config": {
-		"title": "Ontario Energy Pricing",
-		"step": {
-			"user": {
-				"title": "Ontario Energy Pricing Setup",
-				"description": "Configure your Ontario Energy Pricing integration.\n\nThis integration fetches real-time data directly from IESO (Independent Electricity System Operator):\n- Current LMP (Locational Marginal Price) - updated every 5 minutes\n- Global Adjustment\n- Total Rate (LMP + GA + Admin Fee)",
-				"data": {
-					"location": "Your Location (e.g., Oakville, ON)",
-					"admin_fee": "Admin Fee (¢/kWh)"
-				}
-			},
-			"reconfigure": {
-				"title": "Reconfigure Ontario Energy Pricing",
-				"description": "Update your Ontario Energy Pricing settings.",
-				"data": {
-					"location": "Your Location (e.g., Oakville, ON)",
-					"admin_fee": "Admin Fee (¢/kWh)"
-				}
-			}
-		},
-		"error": {
-			"cannot_connect": "Cannot connect to IESO - check network connectivity",
-			"unknown": "Unexpected error - please check logs"
-		},
-		"abort": {
-			"already_configured": "Ontario Energy Pricing is already configured for {location}. Remove the existing configuration to add a new one.",
-			"reconfigure_successful": "Reconfiguration successful"
-		}
-	},
-	"options": {
-		"step": {
-			"init": {
-				"title": "Configure Ontario Energy Pricing",
-				"description": "Adjust your energy pricing settings",
-				"data": {
-					"admin_fee": "Admin Fee (¢/kWh)"
-				}
-			}
-		}
-	},
-	"entity": {
-		"sensor": {
-			"current_lmp": {
-				"name": "Current LMP"
-			},
-			"hour_average_lmp": {
-				"name": "Hour Average LMP"
-			},
-			"global_adjustment": {
-				"name": "Global Adjustment"
-			},
-			"total_rate": {
-				"name": "Total Rate"
-			}
-		}
-	},
-	"services": {
-		"refresh": {
-			"name": "Refresh",
-			"description": "Manually refresh all sensor data from IESO"
-		}
-	},
-	"exceptions": {
-		"xml_parse_error": {
-			"message": "Failed to parse IESO XML response. The IESO data feed may be temporarily unavailable."
-		},
-		"lmp_fetch_error": {
-			"message": "Failed to fetch IESO LMP data. Check your network connection to IESO."
-		},
-		"ieso_connection_error": {
-			"message": "Cannot connect to IESO servers. Verify your internet connection."
-		}
-	}
+  "config": {
+    "title": "Ontario Energy Pricing",
+    "step": {
+      "user": {
+        "title": "Ontario Energy Pricing Setup",
+        "description": "Configure your Ontario Energy Pricing integration.\n\nThis integration fetches real-time data directly from IESO (Independent Electricity System Operator):\n- Current LMP (Locational Marginal Price) - updated every 5 minutes\n- Global Adjustment\n- Total Rate (LMP + GA + Admin Fee)",
+        "data": {
+          "location": "Your Location (e.g., Oakville, ON)",
+          "admin_fee": "Admin Fee (\u00a2/kWh)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Ontario Energy Pricing",
+        "description": "Update your Ontario Energy Pricing settings.",
+        "data": {
+          "location": "Your Location (e.g., Oakville, ON)",
+          "admin_fee": "Admin Fee (\u00a2/kWh)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to IESO - check network connectivity",
+      "unknown": "Unexpected error - please check logs"
+    },
+    "abort": {
+      "already_configured": "Ontario Energy Pricing is already configured for {location}. Remove the existing configuration to add a new one.",
+      "reconfigure_successful": "Reconfiguration successful"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configure Ontario Energy Pricing",
+        "description": "Adjust your energy pricing settings. Check 'Add cheapest window' to create a new binary sensor, or select one to remove.",
+        "data": {
+          "admin_fee": "Admin Fee (\u00a2/kWh)",
+          "add_window": "Add cheapest hours window"
+        }
+      },
+      "add_window": {
+        "title": "Add Cheapest Hours Sensor",
+        "description": "Create a binary sensor that turns ON during the X cheapest forecast hours. Useful for scheduling pool pumps, EV chargers, or appliances.",
+        "data": {
+          "name": "Sensor Name (e.g., Pool Pump)",
+          "window_hours": "Number of Cheapest Hours (1-24)"
+        }
+      },
+      "remove_window": {
+        "title": "Remove Cheapest Hours Sensor",
+        "description": "Are you sure you want to remove the '{name}' sensor?",
+        "data": {
+          "confirm_remove": "Confirm removal"
+        }
+      }
+    },
+    "error": {
+      "name_required": "Sensor name is required",
+      "name_duplicate": "A sensor with this name already exists"
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "cheapest_hours": {
+        "name": "Cheapest {hours}h ({name})"
+      }
+    },
+    "sensor": {
+      "current_lmp": {
+        "name": "Current LMP"
+      },
+      "hour_average_lmp": {
+        "name": "Hour Average LMP"
+      },
+      "global_adjustment": {
+        "name": "Global Adjustment"
+      },
+      "total_rate": {
+        "name": "Total Rate"
+      }
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Refresh",
+      "description": "Manually refresh all sensor data from IESO"
+    }
+  },
+  "exceptions": {
+    "xml_parse_error": {
+      "message": "Failed to parse IESO XML response. The IESO data feed may be temporarily unavailable."
+    },
+    "lmp_fetch_error": {
+      "message": "Failed to fetch IESO LMP data. Check your network connection to IESO."
+    },
+    "ieso_connection_error": {
+      "message": "Cannot connect to IESO servers. Verify your internet connection."
+    }
+  }
 }

@@ -18,7 +18,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from .const import CONF_ADMIN_FEE, DOMAIN, LOGGER
 from .coordinator import OntarioEnergyPricingCoordinator
 
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
 
 # Modern type alias for config entry with runtime_data type
 OntarioEnergyPricingConfigEntry = ConfigEntry[OntarioEnergyPricingCoordinator]
