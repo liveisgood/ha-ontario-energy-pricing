@@ -296,7 +296,7 @@ class OntarioEnergyPricingOptionsFlow(OptionsFlow):
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        self._config_entry = config_entry
         # Work with a mutable copy of the cheapest windows list
         self._windows: list[dict[str, Any]] = list(
             config_entry.options.get(CONF_CHEAPEST_WINDOWS, [])
