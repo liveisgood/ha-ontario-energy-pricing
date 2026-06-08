@@ -345,9 +345,9 @@ class OntarioEnergyPricingOptionsFlow(OptionsFlow):
                 )
                 raise
 
-        current_fee = self.config_entry.options.get(
+        current_fee = self._config_entry.options.get(
             CONF_ADMIN_FEE,
-            self.config_entry.data.get(CONF_ADMIN_FEE, 0.0),
+            self._config_entry.data.get(CONF_ADMIN_FEE, 0.0),
         )
 
         # Build description showing existing windows
