@@ -1,4 +1,4 @@
-"""IESO Real-Time Ontario Zonal Price XML client."""
+"""IESO Real-Time Zonal Energy Price XML client."""
 
 from __future__ import annotations
 
@@ -10,39 +10,37 @@ from typing import Final
 
 import aiohttp
 
-from .const import IESO_DEFAULT_TIMEOUT, LOGGER
-
-# IESO Ontario Zonal Price URL
-IESO_LMP_URL: Final = (
-    "https://reports-public.ieso.ca/public/RealtimeOntarioZonalPrice/"
-    "PUB_RealtimeOntarioZonalPrice.xml"
+from .const import (
+    IESO_DEFAULT_TIMEOUT,
+    IESO_LMP_NAMESPACE,
+    LOGGER,
+    get_zone_from_location,
 )
-IESO_LMP_NS: Final = "http://www.ieso.ca/schema"
+from .exceptions import IESOLMPError
 
 
-class IESOLMPError(Exception):
-    """Error parsing or fetching IESO LMP data."""
-
-    def __init__(self, message: str, xml_snippet: str | None = None) -> None:
-        """Initialize the error."""
-        super().__init__(message)
-        self.xml_snippet = xml_snippet
+# Correct zonal feed with per-zone prices
+IESO_ZONAL_LMP_URL: Final = (
+    "https://reports-public.ieso.ca/public/RealtimeZonalEnergyPrices/"
+    "PUB_RealtimeZonalEnergyPrices.xml"
+)
 
 
 @dataclass(frozen=True, slots=True)
 class IESOZonalPrice:
-    """A single 5-minute interval price."""
+    """A single 5-minute interval price for a specific zone."""
 
     interval: int  # 1-12
     lmp_mwh: float  # $/MWh
-    lmp_kwh: float  # ¢/kWh  ($/MWh × 100¢/$ ÷ 1000kWh/MWh = $/MWh ÷ 10)
+    lmp_kwh: float  # ¢/kWh ($/MWh × 100¢/$ ÷ 1000kWh/MWh = $/MWh ÷ 10)
     flag: str  # Dispatch status
 
 
 @dataclass(frozen=True, slots=True)
 class IESOLMPData:
-    """IESO Ontario Zonal Pricing data."""
+    """IESO Ontario Zonal Pricing data for a specific zone."""
 
+    zone: str
     delivery_date: str
     delivery_hour: int
     created_at: datetime
@@ -78,17 +76,21 @@ class IESOLMPData:
 
 
 class IESOLMPClient:
-    """Client for IESO LMP XML."""
+    """Client for IESO Zonal LMP XML."""
 
-    def __init__(self, session: aiohttp.ClientSession) -> None:
-        """Initialize client."""
+    def __init__(
+        self, session: aiohttp.ClientSession, location: str | None = None
+    ) -> None:
+        """Initialize client with optional location for zone selection."""
         self._session = session
+        self._zone = get_zone_from_location(location) if location else "TORONTO"
+        LOGGER.info("IESO LMP client initialized for zone: %s", self._zone)
 
     async def async_get_current_lmp(self) -> IESOLMPData:
-        """Fetch current LMP data."""
+        """Fetch current LMP data for the configured zone."""
         try:
             async with asyncio.timeout(IESO_DEFAULT_TIMEOUT):
-                async with self._session.get(IESO_LMP_URL) as response:
+                async with self._session.get(IESO_ZONAL_LMP_URL) as response:
                     response.raise_for_status()
                     xml_text = await response.text()
         except Exception as err:
@@ -97,18 +99,18 @@ class IESOLMPClient:
         return self._parse_lmp_xml(xml_text)
 
     def _parse_lmp_xml(self, xml_text: str) -> IESOLMPData:
-        """Parse IESO LMP XML."""
+        """Parse IESO Zonal LMP XML for the configured zone."""
         try:
             root = ET.fromstring(xml_text)
         except ET.ParseError as err:
             raise IESOLMPError(f"Invalid XML: {err}") from err
 
-        ns = {"ieso": IESO_LMP_NS}
+        ns = {"ieso": IESO_LMP_NAMESPACE}
 
         # Extract metadata
         created_at_elem = root.find(".//ieso:CreatedAt", ns)
-        delivery_date_elem = root.find(".//ieso:DeliveryDate", ns)
-        delivery_hour_elem = root.find(".//ieso:DeliveryHour", ns)
+        delivery_date_elem = root.find(".//ieso:DELIVERYDATE", ns)
+        delivery_hour_elem = root.find(".//ieso:DELIVERYHOUR", ns)
 
         if not all(
             elem is not None and elem.text
@@ -125,52 +127,74 @@ class IESOLMPClient:
         delivery_hour = int(delivery_hour_elem.text)
 
         intervals: list[IESOZonalPrice] = []
-        zonal_prices = root.findall(".//ieso:ZonalPrice", ns)
 
-        for price in zonal_prices:
-            interval_elem = price.find("ieso:Interval", ns)
-            lmp_elem = price.find("ieso:LmpCap", ns)
-            flag_elem = price.find("ieso:Flag", ns)
+        # Find the zone we want (format: "ZONENAME:HUB")
+        target_zone_name = f"{self._zone}:HUB"
 
-            if not all(
-                elem is not None and elem.text and elem.text.strip()
-                for elem in [interval_elem, lmp_elem]
-            ):
+        # Search through TransactionZone elements
+        for transaction_zone in root.findall(".//ieso:TransactionZone", ns):
+            zone_name_elem = transaction_zone.find("ieso:ZoneName", ns)
+            if zone_name_elem is None or zone_name_elem.text is None:
                 continue
 
-            assert interval_elem is not None and interval_elem.text
-            assert lmp_elem is not None and lmp_elem.text
+            if zone_name_elem.text.strip() != target_zone_name:
+                continue
 
-            try:
-                interval_num = int(interval_elem.text)
-                lmp_mwh = float(lmp_elem.text)
-                flag = (
-                    flag_elem.text if flag_elem is not None and flag_elem.text else ""
-                )
+            # Found our zone - parse intervals
+            for interval_price in transaction_zone.findall("ieso:IntervalPrice", ns):
+                interval_elem = interval_price.find("ieso:Interval", ns)
+                lmp_elem = interval_price.find("ieso:ZonalPrice", ns)
+                flag_elem = interval_price.find("ieso:FlagNo", ns)
 
-                intervals.append(
-                    IESOZonalPrice(
-                        interval=interval_num,
-                        lmp_mwh=lmp_mwh,
-                        lmp_kwh=lmp_mwh / 10,  # $/MWh × 100¢/$ ÷ 1000kWh/MWh
-                        flag=flag,
+                if not all(
+                    elem is not None and elem.text and elem.text.strip()
+                    for elem in [interval_elem, lmp_elem]
+                ):
+                    continue
+
+                assert interval_elem is not None and interval_elem.text
+                assert lmp_elem is not None and lmp_elem.text
+
+                try:
+                    interval_num = int(interval_elem.text)
+                    lmp_mwh = float(lmp_elem.text)
+                    flag = (
+                        flag_elem.text
+                        if flag_elem is not None and flag_elem.text
+                        else ""
                     )
-                )
-            except (ValueError, TypeError):
-                continue
 
-        intervals.sort(key=lambda x: x.interval)
+                    intervals.append(
+                        IESOZonalPrice(
+                            interval=interval_num,
+                            lmp_mwh=lmp_mwh,
+                            lmp_kwh=lmp_mwh / 10,  # $/MWh × 100¢/$ ÷ 1000kWh/MWh
+                            flag=flag,
+                        )
+                    )
+                except (ValueError, TypeError):
+                    continue
 
-        LOGGER.debug(
-            "Parsed IESO LMP: date=%s, hour=%s, intervals=%d",
-            delivery_date,
-            delivery_hour,
-            len(intervals),
-        )
+            # Sort intervals by interval number
+            intervals.sort(key=lambda x: x.interval)
 
-        return IESOLMPData(
-            delivery_date=delivery_date,
-            delivery_hour=delivery_hour,
-            created_at=created_at,
-            intervals=intervals,
+            LOGGER.debug(
+                "Parsed IESO LMP for zone %s: date=%s, hour=%s, intervals=%d",
+                self._zone,
+                delivery_date,
+                delivery_hour,
+                len(intervals),
+            )
+
+            return IESOLMPData(
+                zone=self._zone,
+                delivery_date=delivery_date,
+                delivery_hour=delivery_hour,
+                created_at=created_at,
+                intervals=intervals,
+            )
+
+        # Zone not found
+        raise IESOLMPError(
+            f"Zone {target_zone_name} not found in IESO zonal price data"
         )

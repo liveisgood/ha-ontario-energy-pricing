@@ -18,6 +18,7 @@ from .const import (
     CONF_WINDOW_HOURS,
     DEFAULT_WINDOW_HOURS,
     DOMAIN,
+    LOCATION_OPTIONS,
     LOGGER,
     MAX_WINDOW_HOURS,
     MIN_WINDOW_HOURS,
@@ -25,7 +26,7 @@ from .const import (
 
 STEP_USER_DATA_SCHEMA: Final = vol.Schema(
     {
-        vol.Required(CONF_LOCATION): str,
+        vol.Required(CONF_LOCATION): vol.In(LOCATION_OPTIONS),
         vol.Required(CONF_ADMIN_FEE, default=0.0): vol.All(
             vol.Coerce(float), vol.Range(min=0)
         ),
@@ -35,7 +36,7 @@ STEP_USER_DATA_SCHEMA: Final = vol.Schema(
 RECONFIGURE_SCHEMA: Final = vol.Schema(
     {
         vol.Required(CONF_ADMIN_FEE): vol.All(vol.Coerce(float), vol.Range(min=0)),
-        vol.Required(CONF_LOCATION): str,
+        vol.Required(CONF_LOCATION): vol.In(LOCATION_OPTIONS),
     }
 )
 

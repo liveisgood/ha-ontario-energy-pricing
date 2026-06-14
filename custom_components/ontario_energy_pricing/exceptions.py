@@ -62,3 +62,19 @@ class IESOConnectionError(OntarioEnergyPricingError):
             message=message,
             translation_key="ieso_connection_error",
         )
+
+
+class IESOPredispatchError(OntarioEnergyPricingError):
+    """Exception raised when IESO predispatch/forecast fetch or parse fails."""
+
+    def __init__(
+        self,
+        message: str = "Failed to fetch IESO forecast data",
+        xml_snippet: str | None = None,
+    ) -> None:
+        """Initialize the exception."""
+        super().__init__(
+            message=message,
+            translation_key="forecast_fetch_error",
+        )
+        self.xml_snippet = xml_snippet

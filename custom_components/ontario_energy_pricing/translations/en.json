@@ -7,7 +7,7 @@
         "description": "Configure your Ontario Energy Pricing integration.\n\nThis integration fetches real-time data directly from IESO (Independent Electricity System Operator):\n- Current LMP (Locational Marginal Price) - updated every 5 minutes\n- Global Adjustment\n- Total Rate (LMP + GA + Admin Fee)",
         "data": {
           "location": "Your Location (e.g., Oakville, ON)",
-          "admin_fee": "Admin Fee (\u00a2/kWh)"
+          "admin_fee": "Admin Fee (¢/kWh)"
         }
       },
       "reconfigure": {
@@ -15,7 +15,7 @@
         "description": "Update your Ontario Energy Pricing settings.",
         "data": {
           "location": "Your Location (e.g., Oakville, ON)",
-          "admin_fee": "Admin Fee (\u00a2/kWh)"
+          "admin_fee": "Admin Fee (¢/kWh)"
         }
       }
     },
@@ -24,20 +24,20 @@
       "unknown": "Unexpected error - please check logs"
     },
     "abort": {
-      "already_configured": "Ontario Energy Pricing is already configured for {location}. Remove the existing configuration to add a new one.",
+      "already_configured": "Ontario Energy Pricing is already configured for {location}. Remove the existing config to add a new one.",
       "reconfigure_successful": "Reconfiguration successful"
     }
   },
   "options": {
+    "init": {
+      "title": "Configure Ontario Energy Pricing",
+      "description": "Adjust your energy pricing settings. Check 'Add cheapest window' to create a new binary sensor, or select one to remove.",
+      "data": {
+        "admin_fee": "Admin Fee (¢/kWh)",
+        "add_window": "Add cheapest hours window"
+      }
+    },
     "step": {
-      "init": {
-        "title": "Configure Ontario Energy Pricing",
-        "description": "Adjust your energy pricing settings. Check 'Add cheapest window' to create a new binary sensor, or select one to remove.",
-        "data": {
-          "admin_fee": "Admin Fee (\u00a2/kWh)",
-          "add_window": "Add cheapest hours window"
-        }
-      },
       "add_window": {
         "title": "Add Cheapest Hours Sensor",
         "description": "Create a binary sensor that turns ON during the X cheapest forecast hours. Useful for scheduling pool pumps, EV chargers, or appliances.",
@@ -63,6 +63,18 @@
     "binary_sensor": {
       "cheapest_hours": {
         "name": "Cheapest {hours}h ({name})"
+      },
+      "price_below": {
+        "name": "Price Below {threshold} ({name})"
+      },
+      "price_above": {
+        "name": "Price Above {threshold} ({name})"
+      },
+      "price_negative": {
+        "name": "Negative Price (Get Paid)"
+      },
+      "grid_stressed": {
+        "name": "Grid Stressed (High Prices Likely)"
       }
     },
     "sensor": {
