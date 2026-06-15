@@ -6,13 +6,11 @@ otherwise.
 
 Users can create multiple sensors with different hour counts via the
 integration's Options flow:
-  - Pool pump: 16 cheapest hours → sensor ON during the 16 lowest-price hours
-  - EV charger: 8 cheapest hours → sensor ON during the 8 lowest-price hours
-  - AC pre-cool: 4 cheapest hours → sensor ON during the 4 lowest-price hours
+  - Pool pump: 16 cheapest hours -> sensor ON during the 16 lowest-price hours
+  - EV charger: 8 cheapest hours -> sensor ON during the 8 lowest-price hours
+  - AC pre-cool: 4 cheapest hours -> sensor ON during the 4 lowest-price hours
 
-Also provides price threshold binary sensors for automation triggers:
-  - Price below X ¢/kWh (e.g., run pool pump)
-  - Price above Y ¢/kWh (e.g., shed loads, AC setback)
+Also provides special binary sensors:
   - Negative price (get paid to consume)
   - Grid stressed (sustained high prices likely)
 """
@@ -33,6 +31,7 @@ from .const import (
     CONF_WINDOW_HOURS,
     DEFAULT_WINDOW_HOURS,
     DOMAIN,
+    LOGGER,
 )
 from .coordinator import OntarioEnergyPricingCoordinator, OntarioEnergyPricingData
 
@@ -54,12 +53,8 @@ async def async_setup_entry(
     for window_config in windows:
         entities.append(OntarioCheapestHoursBinarySensor(coordinator, window_config))
 
-    # Price threshold binary sensors (always available)
+    # Special binary sensors (always available)
     entities.extend([
-        OntarioPriceBelowThresholdSensor(coordinator, "pool_pump", 5.0, "Pool Pump On"),
-        OntarioPriceBelowThresholdSensor(coordinator, "ac_precool", 10.0, "AC Pre-cool OK"),
-        OntarioPriceAboveThresholdSensor(coordinator, "ac_setback", 20.0, "AC Setback"),
-        OntarioPriceAboveThresholdSensor(coordinator, "shed_all", 30.0, "Shed All Loads"),
         OntarioNegativePriceSensor(coordinator),
         OntarioGridStressedSensor(coordinator),
     ])
@@ -74,7 +69,7 @@ class OntarioCheapestHoursBinarySensor(
 
     The sensor is ON when the current IESO delivery hour is one of the
     N cheapest hours in the predispatch/day-ahead forecast. Hours need
-    not be contiguous — the sensor simply flips ON/OFF at each hour
+    not be contiguous -- the sensor simply flips ON/OFF at each hour
     boundary depending on whether that hour made the cheap list.
     """
 
@@ -186,112 +181,6 @@ class OntarioCheapestHoursBinarySensor(
         return "mdi:power-plug-outline" if self.is_on else "mdi:power-plug-off-outline"
 
 
-class OntarioPriceBelowThresholdSensor(
-    CoordinatorEntity[OntarioEnergyPricingCoordinator], BinarySensorEntity
-):
-    """Binary sensor: ON when current price is below threshold (¢/kWh)."""
-
-    _attr_has_entity_name = True
-    _attr_device_class = BinarySensorDeviceClass.RUNNING
-
-    def __init__(
-        self,
-        coordinator: OntarioEnergyPricingCoordinator,
-        suffix: str,
-        threshold: float,
-        name: str,
-    ) -> None:
-        """Initialize the sensor."""
-        super().__init__(coordinator)
-        self._threshold = threshold
-        self._suffix = suffix
-        self._name = name
-        self._attr_unique_id = f"{DOMAIN}_price_below_{suffix}"
-        self._attr_translation_key = "price_below"
-        self._attr_translation_placeholders = {
-            "threshold": f"{threshold}¢/kWh",
-            "name": name,
-        }
-
-    @property
-    def name(self) -> str:
-        return f"Price Below {self._threshold}¢ ({self._name})"
-
-    def is_on(self) -> bool | None:
-        data: OntarioEnergyPricingData | None = self.coordinator.data
-        if not data:
-            return None
-        return data.current_lmp_kwh < self._threshold
-
-    @property
-    def icon(self) -> str:
-        return "mdi:cash-plus" if self.is_on else "mdi:cash-minus"
-
-    @property
-    def extra_state_attributes(self) -> dict[str, object] | None:
-        data = self.coordinator.data
-        if not data:
-            return None
-        return {
-            "threshold_cents_per_kwh": self._threshold,
-            "current_price_cents_per_kwh": round(data.current_lmp_kwh, 2),
-            "price_difference": round(self._threshold - data.current_lmp_kwh, 2),
-        }
-
-
-class OntarioPriceAboveThresholdSensor(
-    CoordinatorEntity[OntarioEnergyPricingCoordinator], BinarySensorEntity
-):
-    """Binary sensor: ON when current price is above threshold (¢/kWh)."""
-
-    _attr_has_entity_name = True
-    _attr_device_class = BinarySensorDeviceClass.PROBLEM
-
-    def __init__(
-        self,
-        coordinator: OntarioEnergyPricingCoordinator,
-        suffix: str,
-        threshold: float,
-        name: str,
-    ) -> None:
-        """Initialize the sensor."""
-        super().__init__(coordinator)
-        self._threshold = threshold
-        self._suffix = suffix
-        self._name = name
-        self._attr_unique_id = f"{DOMAIN}_price_above_{suffix}"
-        self._attr_translation_key = "price_above"
-        self._attr_translation_placeholders = {
-            "threshold": f"{threshold}¢/kWh",
-            "name": name,
-        }
-
-    @property
-    def name(self) -> str:
-        return f"Price Above {self._threshold}¢ ({self._name})"
-
-    def is_on(self) -> bool | None:
-        data: OntarioEnergyPricingData | None = self.coordinator.data
-        if not data:
-            return None
-        return data.current_lmp_kwh > self._threshold
-
-    @property
-    def icon(self) -> str:
-        return "mdi:alert-circle-outline" if self.is_on else "mdi:check-circle-outline"
-
-    @property
-    def extra_state_attributes(self) -> dict[str, object] | None:
-        data = self.coordinator.data
-        if not data:
-            return None
-        return {
-            "threshold_cents_per_kwh": self._threshold,
-            "current_price_cents_per_kwh": round(data.current_lmp_kwh, 2),
-            "price_difference": round(data.current_lmp_kwh - self._threshold, 2),
-        }
-
-
 class OntarioNegativePriceSensor(
     CoordinatorEntity[OntarioEnergyPricingCoordinator], BinarySensorEntity
 ):
@@ -313,7 +202,13 @@ class OntarioNegativePriceSensor(
         data: OntarioEnergyPricingData | None = self.coordinator.data
         if not data:
             return None
-        return data.current_lmp_kwh < 0
+        result = data.current_lmp_kwh < 0
+        LOGGER.debug(
+            "Negative price check: current=%.2f -> %s",
+            data.current_lmp_kwh,
+            result,
+        )
+        return result
 
     @property
     def icon(self) -> str:
@@ -359,7 +254,7 @@ class OntarioGridStressedSensor(
 
         # Heuristic: grid stressed if multiple indicators align
         # 1. Gas generation is high (>6000 MW = lots of marginal gas)
-        # 2. Price is already elevated (>15¢/kWh)
+        # 2. Price is already elevated (>15c/kWh)
         # 3. Fuel mix has low renewable percentage (<20%)
 
         if data.fuel_mix:
@@ -372,7 +267,21 @@ class OntarioGridStressedSensor(
         price_elevated = data.current_lmp_kwh > 15.0
 
         # Grid stressed if price elevated AND (gas high OR renewable low)
-        return price_elevated and (gas_high or renewable_low)
+        is_stressed = price_elevated and (gas_high or renewable_low)
+
+        # Debug logging
+        LOGGER.debug(
+            "Grid stressed check: price=%.2fc elevated=%s gas=%.0fMW high=%s renewable=%.1f%% low=%s -> stressed=%s",
+            data.current_lmp_kwh,
+            price_elevated,
+            data.fuel_mix.gas_mw if data.fuel_mix else 0,
+            gas_high,
+            data.fuel_mix.renewable_percentage if data.fuel_mix else 0,
+            renewable_low,
+            is_stressed,
+        )
+
+        return is_stressed
 
     @property
     def icon(self) -> str:
@@ -387,6 +296,11 @@ class OntarioGridStressedSensor(
             "current_price_cents_per_kwh": round(data.current_lmp_kwh, 2),
             "gas_generation_mw": round(data.fuel_mix.gas_mw, 0),
             "renewable_percentage": round(data.fuel_mix.renewable_percentage, 1),
-            "carbon_intensity_gco2_per_kwh": round(data.fuel_mix.carbon_intensity_gco2_per_kwh, 1),
+            "carbon_intensity_gco2_per_kwh": round(
+                data.fuel_mix.carbon_intensity_gco2_per_kwh, 1
+            ),
             "total_generation_mw": round(data.fuel_mix.total_mw, 0),
+            "price_elevated_threshold": 15.0,
+            "gas_high_threshold_mw": 6000,
+            "renewable_low_threshold_pct": 20.0,
         }

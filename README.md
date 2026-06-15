@@ -59,12 +59,10 @@ Track real-time Ontario electricity rates in Home Assistant with smart schedulin
 | Entity | Triggers ON When | Use Case |
 |--------|------------------|----------|
 | `binary_sensor.ontario_energy_pricing_cheapest_<name>` | Current hour in your cheapest N forecast hours | Pool pump, EV charger, AC pre-cool |
-| `binary_sensor.ontario_energy_pricing_price_below_pool_pump` | Price < **5¢/kWh** | Run pool pump |
-| `binary_sensor.ontario_energy_pricing_price_below_ac_precool` | Price < **10¢/kWh** | AC pre-cool allowed |
-| `binary_sensor.ontario_energy_pricing_price_above_ac_setback` | Price > **20¢/kWh** | AC setback / let temp rise |
-| `binary_sensor.ontario_energy_pricing_price_above_shed_all` | Price > **30¢/kWh** | Shed all discretionary loads |
 | `binary_sensor.ontario_energy_pricing_price_negative` | **Price < 0¢/kWh** (get paid!) | Run everything, charge battery |
 | `binary_sensor.ontario_energy_pricing_grid_stressed` | High gas + low renewable = sustained high prices | Avoid starting loads |
+
+> **Note:** For price thresholds (e.g., "run pool when < 5¢"), use `sensor.ontario_energy_pricing_total_rate` with `numeric_state` triggers in your automations — no dedicated sensors needed.
 
 ### Smart Forecast & Grid Sensors
 
@@ -76,6 +74,82 @@ Track real-time Ontario electricity rates in Home Assistant with smart schedulin
 | `sensor.ontario_energy_pricing_nuclear_mw` / `hydro_mw` / `wind_mw` / `solar_mw` / `gas_mw` | Real-time fuel mix (MW) |
 | `sensor.ontario_energy_pricing_carbon_intensity` | Grid gCO₂/kWh (real-time) |
 | `sensor.ontario_energy_pricing_renewable_percentage` | % zero-carbon generation |
+
+---
+
+## 🔥 Fuel Mix Dashboard (ApexCharts)
+
+Create a beautiful real-time fuel mix chart using the ApexCharts card:
+
+```yaml
+type: custom:apexcharts-card
+header:
+  show: true
+  title: "Ontario Grid Fuel Mix (Real-time)"
+  show_states: true
+  colorize_states: true
+series:
+  - entity: sensor.ontario_energy_pricing_nuclear_mw
+    name: Nuclear
+    type: area
+    color: "#1f77b4"
+  - entity: sensor.ontario_energy_pricing_hydro_mw
+    name: Hydro
+    type: area
+    color: "#2ca02c"
+  - entity: sensor.ontario_energy_pricing_wind_mw
+    name: Wind
+    type: area
+    color: "#8c564b"
+  - entity: sensor.ontario_energy_pricing_solar_mw
+    name: Solar
+    type: area
+    color: "#ff7f0e"
+  - entity: sensor.ontario_energy_pricing_gas_mw
+    name: Gas
+    type: area
+    color: "#d62728"
+  - entity: sensor.ontario_energy_pricing_biofuel_mw
+    name: Biofuel
+    type: area
+    color: "#9467bd"
+group_by: stack
+span:
+  start: day
+```
+
+**Carbon Intensity Gauge:**
+```yaml
+type: custom:apexcharts-card
+header:
+  show: true
+  title: "Grid Carbon Intensity"
+  show_states: true
+series:
+  - entity: sensor.ontario_energy_pricing_carbon_intensity
+    name: gCO₂/kWh
+    type: radialBar
+    color: "#d62728"
+    show:
+      value: true
+      name: true
+span:
+  start: day
+```
+
+**Renewable Percentage:**
+```yaml
+type: custom:apexcharts-card
+header:
+  show: true
+  title: "Renewable Energy %"
+  show_states: true
+series:
+  - entity: sensor.ontario_energy_pricing_renewable_percentage
+    name: Renewable %
+    type: radialBar
+    color: "#2ca02c"
+```
 
 ---
 
@@ -101,9 +175,9 @@ automation:
           - condition: state
             entity_id: binary_sensor.ontario_energy_pricing_price_negative
             state: "on"
-      - condition: state
-        entity_id: binary_sensor.ontario_energy_pricing_price_above_shed_all
-        state: "off"
+      - condition: numeric_state
+        entity_id: sensor.ontario_energy_pricing_total_rate
+        below: 30
     action:
       - service: switch.turn_on
         target: entity_id: switch.pool_pump
@@ -114,12 +188,9 @@ automation:
 automation:
   - alias: "Pool Pump - Avoid Peak Rates"
     trigger:
-      - platform: state
-        entity_id: binary_sensor.ontario_energy_pricing_price_above_shed_all
-        to: "on"
-      - platform: state
-        entity_id: binary_sensor.ontario_energy_pricing_grid_stressed
-        to: "on"
+      - platform: numeric_state
+        entity_id: sensor.ontario_energy_pricing_total_rate
+        above: 30
     action:
       - service: switch.turn_off
         target: entity_id: switch.pool_pump
@@ -130,9 +201,9 @@ automation:
 automation:
   - alias: "EV Charger - Smart Charging"
     trigger:
-      - platform: state
-        entity_id: binary_sensor.ontario_energy_pricing_price_below_pool_pump
-        to: "on"
+      - platform: numeric_state
+        entity_id: sensor.ontario_energy_pricing_total_rate
+        below: 5
     condition:
       - condition: state
         entity_id: binary_sensor.ev_needs_charge
@@ -147,9 +218,9 @@ automation:
 automation:
   - alias: "AC - Pre-cool Before Peak"
     trigger:
-      - platform: state
-        entity_id: binary_sensor.ontario_energy_pricing_price_below_ac_precool
-        to: "on"
+      - platform: numeric_state
+        entity_id: sensor.ontario_energy_pricing_total_rate
+        below: 10
     condition:
       - condition: time
         after: "12:00"
@@ -166,9 +237,9 @@ automation:
 automation:
   - alias: "AC - Setback During Expensive Hours"
     trigger:
-      - platform: state
-        entity_id: binary_sensor.ontario_energy_pricing_price_above_ac_setback
-        to: "on"
+      - platform: numeric_state
+        entity_id: sensor.ontario_energy_pricing_total_rate
+        above: 20
     action:
       - service: climate.set_temperature
         target: entity_id: climate.main_floor
@@ -270,7 +341,7 @@ custom_components/ontario_energy_pricing/
 ├── const.py             # Constants, zone mapping, location options
 ├── coordinator.py       # Data coordinator (LMP, GA, forecast, VG, fuel mix)
 ├── sensor.py            # 4 price sensors
-├── binary_sensor.py     # 7+ binary sensors (cheapest, thresholds, grid)
+├── binary_sensor.py     # 3 binary sensors (cheapest, negative, grid stress)
 ├── ieso_lmp.py          # Zone-aware LMP client
 ├── ieso_ga.py           # Global Adjustment client
 ├── ieso_predispatch.py  # Forecast client
