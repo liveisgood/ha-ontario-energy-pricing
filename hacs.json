@@ -1,8 +1,9 @@
 {
-  "name": "Ontario Energy Pricing",
-  "content_in_root": false,
-  "homeassistant": "2024.1.0",
-  "render_readme": true,
-  "iot_class": "cloud_polling",
-  "country": ["CA"]
+	"name": "Ontario Energy Pricing",
+	"description": "Track real-time Ontario electricity rates with smart scheduling for pool pumps, EV chargers, and HVAC. Zone-aware LMP, solar/wind forecasts, fuel mix, and price threshold automations.",
+	"content_in_root": false,
+	"homeassistant": "2024.1.0",
+	"render_readme": true,
+	"iot_class": "cloud_polling",
+	"country": ["CA"]
 }
