@@ -17,6 +17,8 @@ Also provides special binary sensors:
 
 from __future__ import annotations
 
+from collections import deque
+
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
@@ -43,6 +45,10 @@ async def async_setup_entry(
 ) -> None:
     """Set up Ontario Energy Pricing binary sensors from a config entry."""
     coordinator: OntarioEnergyPricingCoordinator = entry.runtime_data
+
+    # Initialize rolling price history for grid stress detection
+    if not hasattr(coordinator, "recent_prices"):
+        coordinator.recent_prices = deque(maxlen=27)  # ~2 hours at 4.5 min intervals
 
     # Read cheapest window configs from options (list of dicts with name/hours)
     windows: list[dict] = entry.options.get(CONF_CHEAPEST_WINDOWS, [])
@@ -229,10 +235,11 @@ class OntarioGridStressedSensor(
 ):
     """Binary sensor: ON when grid stress indicators suggest sustained high prices.
 
-    Combines:
-    - High gas generation (marginal price setter)
-    - High reserve prices (from IESO ORLMP feed)
-    - Transmission congestion (shadow prices)
+    Uses RELATIVE signals (no fixed thresholds) that work year-round:
+    - Gas is the marginal price setter (>50% of total = gas-dominated pricing)
+    - Low renewables (<20%) = less zero-carbon competition for gas
+    - Price trending up vs recent history (rolling percentile)
+    - High carbon intensity (>300 gCO2/kWh = gas-heavy grid)
     """
 
     _attr_has_entity_name = True
@@ -252,36 +259,52 @@ class OntarioGridStressedSensor(
         if not data:
             return None
 
-        # Heuristic: grid stressed if multiple indicators align
-        # 1. Gas generation is high (>6000 MW = lots of marginal gas)
-        # 2. Price is already elevated (>15c/kWh)
-        # 3. Fuel mix has low renewable percentage (<20%)
+        if not data.fuel_mix:
+            return None
 
-        if data.fuel_mix:
-            gas_high = data.fuel_mix.gas_mw > 6000
-            renewable_low = data.fuel_mix.renewable_percentage < 20
-        else:
-            gas_high = False
-            renewable_low = False
+        # Signal 1: Gas is dominant marginal setter (>50% of generation)
+        gas_dominant = data.fuel_mix.gas_mw > (data.fuel_mix.total_mw * 0.5)
 
-        price_elevated = data.current_lmp_kwh > 15.0
+        # Signal 2: Low renewable competition for gas (<20% zero-carbon)
+        renewable_low = data.fuel_mix.renewable_percentage < 20
 
-        # Grid stressed if price elevated AND (gas high OR renewable low)
-        is_stressed = price_elevated and (gas_high or renewable_low)
+        # Signal 3: High carbon intensity (>300 gCO2/kWh = gas-heavy)
+        carbon_high = data.fuel_mix.carbon_intensity_gco2_per_kwh > 300
+
+        # Signal 4: Price trending up vs recent history (coordinator rolling avg)
+        price_trending_up = self._is_price_trending_up(data)
+
+        # Grid stressed if: (gas dominant OR high carbon) AND (low renewable OR price trending up)
+        is_stressed = (gas_dominant or carbon_high) and (renewable_low or price_trending_up)
 
         # Debug logging
         LOGGER.debug(
-            "Grid stressed check: price=%.2fc elevated=%s gas=%.0fMW high=%s renewable=%.1f%% low=%s -> stressed=%s",
+            "Grid stressed check: price=%.2fc gas=%.0fMW (%.1f%%) dominant=%s "
+            "renewable=%.1f%% low=%s carbon=%.0f high=%s trending=%s -> stressed=%s",
             data.current_lmp_kwh,
-            price_elevated,
-            data.fuel_mix.gas_mw if data.fuel_mix else 0,
-            gas_high,
-            data.fuel_mix.renewable_percentage if data.fuel_mix else 0,
+            data.fuel_mix.gas_mw,
+            (data.fuel_mix.gas_mw / data.fuel_mix.total_mw * 100) if data.fuel_mix.total_mw > 0 else 0,
+            gas_dominant,
+            data.fuel_mix.renewable_percentage,
             renewable_low,
+            data.fuel_mix.carbon_intensity_gco2_per_kwh,
+            carbon_high,
+            price_trending_up,
             is_stressed,
         )
 
         return is_stressed
+
+    def _is_price_trending_up(self, data: OntarioEnergyPricingData) -> bool:
+        """Check if price is trending up vs recent coordinator history."""
+        # Use coordinator's rolling price history (last ~2 hours = ~27 intervals)
+        recent_prices = getattr(self.coordinator, "recent_prices", None)
+        if not recent_prices or len(recent_prices) < 10:
+            return False
+
+        # Compare current price to median of recent
+        median_recent = sorted(recent_prices)[len(recent_prices) // 2]
+        return data.current_lmp_kwh > median_recent * 1.2  # 20% above median
 
     @property
     def icon(self) -> str:
@@ -295,12 +318,14 @@ class OntarioGridStressedSensor(
         return {
             "current_price_cents_per_kwh": round(data.current_lmp_kwh, 2),
             "gas_generation_mw": round(data.fuel_mix.gas_mw, 0),
+            "gas_percentage": round(data.fuel_mix.gas_mw / data.fuel_mix.total_mw * 100, 1)
+            if data.fuel_mix.total_mw > 0
+            else 0,
             "renewable_percentage": round(data.fuel_mix.renewable_percentage, 1),
-            "carbon_intensity_gco2_per_kwh": round(
-                data.fuel_mix.carbon_intensity_gco2_per_kwh, 1
-            ),
+            "carbon_intensity_gco2_per_kwh": round(data.fuel_mix.carbon_intensity_gco2_per_kwh, 1),
             "total_generation_mw": round(data.fuel_mix.total_mw, 0),
-            "price_elevated_threshold": 15.0,
-            "gas_high_threshold_mw": 6000,
-            "renewable_low_threshold_pct": 20.0,
+            "gas_dominant": data.fuel_mix.gas_mw > (data.fuel_mix.total_mw * 0.5) if data.fuel_mix.total_mw > 0 else False,
+            "carbon_high": data.fuel_mix.carbon_intensity_gco2_per_kwh > 300,
+            "renewable_low": data.fuel_mix.renewable_percentage < 20,
+            "price_trending_up": self._is_price_trending_up(data) if data else False,
         }
