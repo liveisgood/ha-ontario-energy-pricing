@@ -6,15 +6,17 @@ from datetime import datetime
 logging.basicConfig(level=logging.WARNING)
 
 # Load models module
-with open('/home/dmalloc/pidev/custom_components/ontario_energy_pricing/models.py', 'r') as f:
+with open(
+    "/home/dmalloc/pidev/custom_components/ontario_energy_pricing/models.py", "r"
+) as f:
     code = f.read()
 
-namespace = {'logging': logging}
+namespace = {"logging": logging}
 exec(code, namespace)
 
-VGForecastData = namespace['VGForecastData']
-FuelMixData = namespace['FuelMixData']
-PriceThresholds = namespace['PriceThresholds']
+VGForecastData = namespace["VGForecastData"]
+FuelMixData = namespace["FuelMixData"]
+PriceThresholds = namespace["PriceThresholds"]
 
 
 def test_vg_forecast_total_vg_mw():
@@ -155,7 +157,7 @@ def test_fuel_mix_carbon_intensity():
     mixed = FuelMixData(
         timestamp=datetime.now(),
         nuclear_mw=5000.0,  # 12 gCO2
-        gas_mw=5000.0,      # 400 gCO2
+        gas_mw=5000.0,  # 400 gCO2
     )
     # (5000*12 + 5000*400) / 10000 = 206 gCO2/kWh
     assert abs(mixed.carbon_intensity_gco2_per_kwh - 206.0) < 0.01

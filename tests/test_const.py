@@ -5,15 +5,17 @@ import logging
 logging.basicConfig(level=logging.WARNING)
 
 # Load the const module directly
-with open('/home/dmalloc/pidev/custom_components/ontario_energy_pricing/const.py', 'r') as f:
+with open(
+    "/home/dmalloc/pidev/custom_components/ontario_energy_pricing/const.py", "r"
+) as f:
     code = f.read()
 
-namespace = {'logging': logging}
+namespace = {"logging": logging}
 exec(code, namespace)
 
-get_zone_from_location = namespace['get_zone_from_location']
-LOCATION_TO_ZONE = namespace['LOCATION_TO_ZONE']
-LOCATION_OPTIONS = namespace['LOCATION_OPTIONS']
+get_zone_from_location = namespace["get_zone_from_location"]
+LOCATION_TO_ZONE = namespace["LOCATION_TO_ZONE"]
+LOCATION_OPTIONS = namespace["LOCATION_OPTIONS"]
 
 
 def test_known_locations_map_to_correct_zone():
@@ -101,7 +103,9 @@ def test_known_locations_map_to_correct_zone():
 
     for location, expected_zone in test_cases.items():
         result = get_zone_from_location(location)
-        assert result == expected_zone, f"Failed for '{location}': expected {expected_zone}, got {result}"
+        assert result == expected_zone, (
+            f"Failed for '{location}': expected {expected_zone}, got {result}"
+        )
 
 
 def test_unknown_location_defaults_to_toronto():

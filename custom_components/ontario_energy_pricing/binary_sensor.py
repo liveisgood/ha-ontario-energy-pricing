@@ -60,10 +60,12 @@ async def async_setup_entry(
         entities.append(OntarioCheapestHoursBinarySensor(coordinator, window_config))
 
     # Special binary sensors (always available)
-    entities.extend([
-        OntarioNegativePriceSensor(coordinator),
-        OntarioGridStressedSensor(coordinator),
-    ])
+    entities.extend(
+        [
+            OntarioNegativePriceSensor(coordinator),
+            OntarioGridStressedSensor(coordinator),
+        ]
+    )
 
     async_add_entities(entities)
 
@@ -275,7 +277,9 @@ class OntarioGridStressedSensor(
         price_trending_up = self._is_price_trending_up(data)
 
         # Grid stressed if: (gas dominant OR high carbon) AND (low renewable OR price trending up)
-        is_stressed = (gas_dominant or carbon_high) and (renewable_low or price_trending_up)
+        is_stressed = (gas_dominant or carbon_high) and (
+            renewable_low or price_trending_up
+        )
 
         # Debug logging
         LOGGER.debug(
@@ -283,7 +287,9 @@ class OntarioGridStressedSensor(
             "renewable=%.1f%% low=%s carbon=%.0f high=%s trending=%s -> stressed=%s",
             data.current_lmp_kwh,
             data.fuel_mix.gas_mw,
-            (data.fuel_mix.gas_mw / data.fuel_mix.total_mw * 100) if data.fuel_mix.total_mw > 0 else 0,
+            (data.fuel_mix.gas_mw / data.fuel_mix.total_mw * 100)
+            if data.fuel_mix.total_mw > 0
+            else 0,
             gas_dominant,
             data.fuel_mix.renewable_percentage,
             renewable_low,
@@ -318,13 +324,19 @@ class OntarioGridStressedSensor(
         return {
             "current_price_cents_per_kwh": round(data.current_lmp_kwh, 2),
             "gas_generation_mw": round(data.fuel_mix.gas_mw, 0),
-            "gas_percentage": round(data.fuel_mix.gas_mw / data.fuel_mix.total_mw * 100, 1)
+            "gas_percentage": round(
+                data.fuel_mix.gas_mw / data.fuel_mix.total_mw * 100, 1
+            )
             if data.fuel_mix.total_mw > 0
             else 0,
             "renewable_percentage": round(data.fuel_mix.renewable_percentage, 1),
-            "carbon_intensity_gco2_per_kwh": round(data.fuel_mix.carbon_intensity_gco2_per_kwh, 1),
+            "carbon_intensity_gco2_per_kwh": round(
+                data.fuel_mix.carbon_intensity_gco2_per_kwh, 1
+            ),
             "total_generation_mw": round(data.fuel_mix.total_mw, 0),
-            "gas_dominant": data.fuel_mix.gas_mw > (data.fuel_mix.total_mw * 0.5) if data.fuel_mix.total_mw > 0 else False,
+            "gas_dominant": data.fuel_mix.gas_mw > (data.fuel_mix.total_mw * 0.5)
+            if data.fuel_mix.total_mw > 0
+            else False,
             "carbon_high": data.fuel_mix.carbon_intensity_gco2_per_kwh > 300,
             "renewable_low": data.fuel_mix.renewable_percentage < 20,
             "price_trending_up": self._is_price_trending_up(data) if data else False,

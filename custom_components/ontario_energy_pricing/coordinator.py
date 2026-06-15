@@ -88,7 +88,9 @@ class OntarioEnergyPricingCoordinator(DataUpdateCoordinator):
         from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
         session = async_get_clientsession(self.hass)
-        location = self.config_entry.options.get(CONF_LOCATION) or self.config_entry.data.get(CONF_LOCATION)
+        location = self.config_entry.options.get(
+            CONF_LOCATION
+        ) or self.config_entry.data.get(CONF_LOCATION)
         self._lmp_client = IESOLMPClient(session, location=location)
         self._ga_client = IESOGlobalAdjustmentClient(session)
         self._predisp_client = IESOPredispatchClient(session)
@@ -114,14 +116,22 @@ class OntarioEnergyPricingCoordinator(DataUpdateCoordinator):
         # Check if LMP or GA failed
         if isinstance(lmp_result, Exception):
             if isinstance(lmp_result, (IESOXMLParseError, IESOLMPError)):
-                raise UpdateFailed(f"Error fetching IESO LMP data: {lmp_result}") from lmp_result
+                raise UpdateFailed(
+                    f"Error fetching IESO LMP data: {lmp_result}"
+                ) from lmp_result
             else:
-                raise UpdateFailed(f"Unexpected error fetching IESO LMP data: {lmp_result}") from lmp_result
+                raise UpdateFailed(
+                    f"Unexpected error fetching IESO LMP data: {lmp_result}"
+                ) from lmp_result
         if isinstance(ga_result, Exception):
             if isinstance(ga_result, (IESOXMLParseError, IESOLMPError)):
-                raise UpdateFailed(f"Error fetching IESO GA data: {ga_result}") from ga_result
+                raise UpdateFailed(
+                    f"Error fetching IESO GA data: {ga_result}"
+                ) from ga_result
             else:
-                raise UpdateFailed(f"Unexpected error fetching IESO GA data: {ga_result}") from ga_result
+                raise UpdateFailed(
+                    f"Unexpected error fetching IESO GA data: {ga_result}"
+                ) from ga_result
 
         lmp_data = lmp_result
         ga_data = ga_result
@@ -137,7 +147,9 @@ class OntarioEnergyPricingCoordinator(DataUpdateCoordinator):
             self._gen_client.fetch(),
             return_exceptions=True,
         )
-        forecast_today_result, forecast_tomorrow_result, vg_result, gen_result = optional_results
+        forecast_today_result, forecast_tomorrow_result, vg_result, gen_result = (
+            optional_results
+        )
 
         forecast_today = None
         forecast_tomorrow = None
@@ -148,17 +160,29 @@ class OntarioEnergyPricingCoordinator(DataUpdateCoordinator):
             forecast_today = forecast_today_result
         else:
             if isinstance(forecast_today_result, IESOPredispatchError):
-                LOGGER.warning("Failed to fetch IESO predispatch forecast: %s", forecast_today_result)
+                LOGGER.warning(
+                    "Failed to fetch IESO predispatch forecast: %s",
+                    forecast_today_result,
+                )
             else:
-                LOGGER.warning("Unexpected error fetching IESO predispatch forecast: %s", forecast_today_result)
+                LOGGER.warning(
+                    "Unexpected error fetching IESO predispatch forecast: %s",
+                    forecast_today_result,
+                )
 
         if not isinstance(forecast_tomorrow_result, Exception):
             forecast_tomorrow = forecast_tomorrow_result
         else:
             if isinstance(forecast_tomorrow_result, IESOPredispatchError):
-                LOGGER.warning("Failed to fetch IESO day-ahead forecast: %s", forecast_tomorrow_result)
+                LOGGER.warning(
+                    "Failed to fetch IESO day-ahead forecast: %s",
+                    forecast_tomorrow_result,
+                )
             else:
-                LOGGER.warning("Unexpected error fetching IESO day-ahead forecast: %s", forecast_tomorrow_result)
+                LOGGER.warning(
+                    "Unexpected error fetching IESO day-ahead forecast: %s",
+                    forecast_tomorrow_result,
+                )
 
         if not isinstance(vg_result, Exception):
             ieso_vg = vg_result
@@ -186,14 +210,18 @@ class OntarioEnergyPricingCoordinator(DataUpdateCoordinator):
             if isinstance(vg_result, IESOPredispatchError):
                 LOGGER.warning("Failed to fetch IESO VG forecast: %s", vg_result)
             else:
-                LOGGER.warning("Unexpected error fetching IESO VG forecast: %s", vg_result)
+                LOGGER.warning(
+                    "Unexpected error fetching IESO VG forecast: %s", vg_result
+                )
 
         if not isinstance(gen_result, Exception):
             ieso_gen = gen_result
             current_hour = ieso_gen.current_hour_output()
             if current_hour:
                 # Use the data date from IESO (midnight of that day) as timestamp
-                fuel_mix_timestamp = datetime.combine(ieso_gen.date, datetime.min.time())
+                fuel_mix_timestamp = datetime.combine(
+                    ieso_gen.date, datetime.min.time()
+                )
                 fuel_mix = FuelMixData(
                     timestamp=fuel_mix_timestamp,
                     nuclear_mw=current_hour.get_fuel("NUCLEAR").mw
@@ -222,7 +250,9 @@ class OntarioEnergyPricingCoordinator(DataUpdateCoordinator):
             if isinstance(gen_result, IESOPredispatchError):
                 LOGGER.warning("Failed to fetch IESO generator output: %s", gen_result)
             else:
-                LOGGER.warning("Unexpected error fetching IESO generator output: %s", gen_result)
+                LOGGER.warning(
+                    "Unexpected error fetching IESO generator output: %s", gen_result
+                )
 
         try:
             return OntarioEnergyPricingData(

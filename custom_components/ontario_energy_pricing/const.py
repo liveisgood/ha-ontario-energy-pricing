@@ -156,9 +156,11 @@ def get_zone_from_location(location: str) -> str:
     if not location:
         return "TORONTO"
 
-    # Normalize: lowercase, remove "ontario", "on", extra spaces
-    normalized = location.lower().replace("ontario", "").replace("on,", "").replace("on", "").strip()
-    normalized = " ".join(normalized.split())  # collapse multiple spaces
+    # Normalize: lowercase, remove "ontario" and "on" as whole words only
+    normalized = location.lower()
+    # Remove "ontario" as whole word
+    normalized = " ".join(w for w in normalized.split() if w not in {"ontario", "on"})
+    normalized = normalized.strip()
 
     # Try exact match first
     if normalized in LOCATION_TO_ZONE:
