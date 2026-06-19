@@ -204,7 +204,7 @@ class TestIESOGlobalAdjustmentClient:
         client = IESOGlobalAdjustmentClient(session=mock_session)
         result = await client.async_get_rates_for_current_month()
 
-        assert result.rate ==        assert result.rate == 0.06
+        assert result.rate == 0.06
 
     @pytest.mark.asyncio
     async def test_xml_snippet_in_error(self) -> None:

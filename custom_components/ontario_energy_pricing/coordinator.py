@@ -1,4 +1,5 @@
 """DataUpdateCoordinators for Ontario Energy Pricing."""
+
 from __future__ import annotations
 import asyncio
 from collections import deque
@@ -22,6 +23,11 @@ from .ieso_predispatch import (
 )
 from .ieso_vg_forecast import IESOVGforecastClient
 from .ieso_gen_output import IESOGenOutputClient
+from .ieso_reserves import IESOReservePricesClient
+from .ieso_shadow_prices import IESOShadowPricesClient
+from .ieso_tx_outages import IESOTxOutagesClient
+from .ieso_demand_zonal import IESODemandZonalClient
+from .ieso_intertie_lmp import IESOIntertieLMPClient
 from .models import VGForecastData, FuelMixData
 
 
@@ -43,6 +49,14 @@ class OntarioEnergyPricingData:
     # New: VG forecast and fuel mix
     vg_forecast: VGForecastData | None = None
     fuel_mix: FuelMixData | None = None
+    # New: Shadow prices
+    shadow_prices: dict[str, Any] | None = None
+    # New: Tx outages
+    tx_outages: dict[str, Any] | None = None
+    # New: Demand zonal
+    demand_zonal: dict[str, Any] | None = None
+    # New: Intertie LMP
+    intertie_lmp: dict[str, Any] | None = None
 
     @property
     def total_rate(self) -> float:
@@ -66,6 +80,11 @@ class OntarioEnergyPricingCoordinator(DataUpdateCoordinator):
         self._predisp_client: IESOPredispatchClient | None = None
         self._vg_client: IESOVGforecastClient | None = None
         self._gen_client: IESOGenOutputClient | None = None
+        self._reserve_client: IESOReservePricesClient | None = None
+        self._shadow_prices_client: IESOShadowPricesClient | None = None
+        self._tx_outages_client: IESOTxOutagesClient | None = None
+        self._demand_zonal_client: IESODemandZonalClient | None = None
+        self._intertie_lmp_client: IESOIntertieLMPClient | None = None
         # Rolling price history for grid stress detection (~2 hours at 4.5 min intervals)
         self.recent_prices: deque[float] = deque(maxlen=27)
         super().__init__(
@@ -93,6 +112,11 @@ class OntarioEnergyPricingCoordinator(DataUpdateCoordinator):
         self._predisp_client = IESOPredispatchClient(session)
         self._vg_client = IESOVGforecastClient(session)
         self._gen_client = IESOGenOutputClient(session)
+        self._reserve_client = IESOReservePricesClient(session)
+        self._shadow_prices_client = IESOShadowPricesClient(session)
+        self._tx_outages_client = IESOTxOutagesClient(session)
+        self._demand_zonal_client = IESODemandZonalClient(session)
+        self._intertie_lmp_client = IESOIntertieLMPClient(session)
 
     async def _async_update_data(self) -> OntarioEnergyPricingData:
         """Fetch all pricing data from IESO."""
@@ -101,31 +125,53 @@ class OntarioEnergyPricingCoordinator(DataUpdateCoordinator):
         assert self._predisp_client is not None
         assert self._vg_client is not None
         assert self._gen_client is not None
+        assert self._reserve_client is not None
+        assert self._shadow_prices_client is not None
+        assert self._tx_outages_client is not None
+        assert self._demand_zonal_client is not None
+        assert self._intertie_lmp_client is not None
         # Fetch required data (LMP and GA) - if either fails, we cannot proceed
         try:
             lmp_data = await self._lmp_client.async_get_current_lmp()
             ga_data = await self._ga_client.async_get_current_rate()
         except Exception as err:
             raise UpdateFailed(f"Error fetching required IESO data: {err}") from err
-        
+
         try:
             # Update rolling price history for grid stress detection
             self.recent_prices.append(lmp_data.current_lmp_kwh)
-            # Fetch forecast, VG, and fuel mix data in parallel, but allow failures
+            # Fetch forecast, VG, fuel mix, reserve, shadow prices, tx outages, demand zonal, and intertie LMP data in parallel, but allow failures
             optional_results = await asyncio.gather(
                 self._predisp_client.async_get_predispatch(),
                 self._predisp_client.async_get_day_ahead(),
                 self._vg_client.fetch(),
                 self._gen_client.fetch(),
+                self._reserve_client.fetch(),
+                self._shadow_prices_client.fetch(),
+                self._tx_outages_client.fetch(),
+                self._demand_zonal_client.fetch(),
+                self._intertie_lmp_client.fetch(),
                 return_exceptions=True,
             )
-            forecast_today_result, forecast_tomorrow_result, vg_result, gen_result = (
-                optional_results
-            )
+            (
+                forecast_today_result,
+                forecast_tomorrow_result,
+                vg_result,
+                gen_result,
+                reserve_result,
+                shadow_prices_result,
+                tx_outages_result,
+                demand_zonal_result,
+                intertie_lmp_result,
+            ) = optional_results
             forecast_today = None
             forecast_tomorrow = None
             vg_forecast = None
             fuel_mix = None
+            shadow_prices = None
+            tx_outages = None
+            demand_zonal = None
+            intertie_lmp = None
             # Process forecast today (optional)
             if not isinstance(forecast_today_result, Exception):
                 forecast_today = forecast_today_result
@@ -201,7 +247,29 @@ class OntarioEnergyPricingCoordinator(DataUpdateCoordinator):
                         else 0.0,
                     )
                 if isinstance(gen_result, IESOPredispatchError):
-                    LOGGER.warning("Failed to fetch IESO generator output: %s", gen_result)
+                    LOGGER.warning(
+                        "Failed to fetch IESO generator output: %s", gen_result
+                    )
+            # Process reserve prices (optional)
+            if not isinstance(reserve_result, Exception):
+                reserve_data = reserve_result
+                # Store reserve data directly - it's already in the right format from the client
+                reserve_prices = reserve_data
+                # Note: We're not converting to a specific model here since the client returns
+                # a structured dict that can be used directly by binary sensors
+                # If we need a specific model later, we can add it
+            # Process shadow prices (optional)
+            if not isinstance(shadow_prices_result, Exception):
+                shadow_prices = shadow_prices_result
+            # Process tx outages (optional)
+            if not isinstance(tx_outages_result, Exception):
+                tx_outages = tx_outages_result
+            # Process demand zonal (optional)
+            if not isinstance(demand_zonal_result, Exception):
+                demand_zonal = demand_zonal_result
+            # Process intertie LMP (optional)
+            if not isinstance(intertie_lmp_result, Exception):
+                intertie_lmp = intertie_lmp_result
             # Return the compiled data
             return OntarioEnergyPricingData(
                 current_lmp_kwh=lmp_data.current_lmp_kwh,
@@ -230,6 +298,10 @@ class OntarioEnergyPricingCoordinator(DataUpdateCoordinator):
                 forecast_tomorrow=forecast_tomorrow,
                 vg_forecast=vg_forecast,
                 fuel_mix=fuel_mix,
+                shadow_prices=shadow_prices,
+                tx_outages=tx_outages,
+                demand_zonal=demand_zonal,
+                intertie_lmp=intertie_lmp,
             )
         except Exception as err:
             raise UpdateFailed(f"Error processing IESO data: {err}") from err
