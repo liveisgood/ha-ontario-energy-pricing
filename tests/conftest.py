@@ -25,7 +25,7 @@ TEST_ADMIN_FEE = 1.45  # ¢/kWh
 
 
 @pytest.fixture
-def mock_hass(event_loop) -> Generator[MagicMock, None, None]:
+def mock_hass() -> Generator[MagicMock, None, None]:
     """Create a mock HomeAssistant instance."""
     hass = MagicMock(spec=HomeAssistant)
     hass.data = {}
@@ -94,34 +94,46 @@ def sample_ieso_lmp_data() -> dict[str, Any]:
 
 @pytest.fixture
 def sample_ieso_xml() -> str:
-    """Sample IESO LMP XML response."""
+    """Sample IESO LMP XML response (matches real RealtimeZonalEnergyPrices feed)."""
     return """<?xml version="1.0" encoding="UTF-8"?>
 <Document xmlns="http://www.ieso.ca/schema">
   <DocHeader>
-    <DocTitle>Real-Time 5-min Ontario Zonal Energy Price Report</DocTitle>
+    <DocTitle>Realtime 5-min Virtual Zonal Energy Prices Report</DocTitle>
+    <DocRevision>1</DocRevision>
+    <DocConfidentiality>
+      <DocConfClass>PUB</DocConfClass>
+    </DocConfidentiality>
     <CreatedAt>2026-04-12T13:22:48</CreatedAt>
   </DocHeader>
   <DocBody>
-    <DeliveryDate>2026-04-12</DeliveryDate>
-    <DeliveryHour>14</DeliveryHour>
-    <ZonalPrice>
-      <Interval>1</Interval>
-      <LmpCap>56.55</LmpCap>
-      <Flag>DSO-RD</Flag>
-    </ZonalPrice>
-    <ZonalPrice>
-      <Interval>2</Interval>
-      <LmpCap>52.41</LmpCap>
-      <Flag>DSO-RD</Flag>
-    </ZonalPrice>
-    <ZonalPrice>
-      <Interval>3</Interval>
-      <LmpCap>51.23</LmpCap>
-      <Flag>DSO-RD</Flag>
-    </ZonalPrice>
-    <AveragePrice>
-      <LmpCap>53.88</LmpCap>
-    </AveragePrice>
+    <DELIVERYDATE>2026-04-12</DELIVERYDATE>
+    <DELIVERYHOUR>14</DELIVERYHOUR>
+    <ZonalPrices>
+      <TransactionZone>
+        <ZoneName>TORONTO:HUB</ZoneName>
+        <IntervalPrice>
+          <Interval>1</Interval>
+          <ZonalPrice>56.55</ZonalPrice>
+          <EnergyLossPrice>0.0</EnergyLossPrice>
+          <EnergyCongPrice>0.0</EnergyCongPrice>
+          <FlagNo>0</FlagNo>
+        </IntervalPrice>
+        <IntervalPrice>
+          <Interval>2</Interval>
+          <ZonalPrice>52.41</ZonalPrice>
+          <EnergyLossPrice>0.0</EnergyLossPrice>
+          <EnergyCongPrice>0.0</EnergyCongPrice>
+          <FlagNo>0</FlagNo>
+        </IntervalPrice>
+        <IntervalPrice>
+          <Interval>3</Interval>
+          <ZonalPrice>51.23</ZonalPrice>
+          <EnergyLossPrice>0.0</EnergyLossPrice>
+          <EnergyCongPrice>0.0</EnergyCongPrice>
+          <FlagNo>0</FlagNo>
+        </IntervalPrice>
+      </TransactionZone>
+    </ZonalPrices>
   </DocBody>
 </Document>"""
 

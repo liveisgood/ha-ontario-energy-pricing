@@ -1,12 +1,11 @@
 """Sensor platform for Ontario Energy Pricing."""
-
 from __future__ import annotations
 
 import traceback
 from typing import Any
 
 from homeassistant.components.sensor import (
-    SensorEntity,
+    SensorDeviceClass,
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
@@ -45,7 +44,7 @@ async def async_setup_entry(
         return
 
     try:
-        entities: list[SensorEntity] = [
+        entities: list[OntarioEnergyPricingSensor] = [
             OntarioCurrentLMPSensor(coordinator),
             OntarioHourAverageLMPSensor(coordinator),
             OntarioGlobalAdjustmentSensor(coordinator),
@@ -75,12 +74,13 @@ async def async_setup_entry(
         )
 
 
-class OntarioEnergyPricingSensor(CoordinatorEntity, SensorEntity):
+class OntarioEnergyPricingSensor(CoordinatorEntity):
     """Base class for Ontario Energy Pricing sensors."""
 
     _attr_has_entity_name = True
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = "¢/kWh"
+    _attr_device_class = SensorDeviceClass.MONETARY
 
     def __init__(
         self,
@@ -113,13 +113,12 @@ class OntarioCurrentLMPSensor(OntarioEnergyPricingSensor):
         """Return the current LMP price in ¢/kWh."""
         if self.coordinator.data:
             return self.coordinator.data.current_lmp_kwh
-        return None
 
     @property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
+    def extra_state_attributes(self) -> dict[str, Any]:
         """Return sensor attributes."""
         if not self.coordinator.data:
-            return None
+            return {}
         return {
             "lmp_mwh": self.coordinator.data.current_lmp_mwh,
             "delivery_hour": self.coordinator.data.delivery_hour,
@@ -142,7 +141,6 @@ class OntarioHourAverageLMPSensor(OntarioEnergyPricingSensor):
         """Return the hour average LMP price in ¢/kWh."""
         if self.coordinator.data:
             return self.coordinator.data.hour_average_lmp_kwh
-        return None
 
 
 class OntarioGlobalAdjustmentSensor(OntarioEnergyPricingSensor):
@@ -159,13 +157,12 @@ class OntarioGlobalAdjustmentSensor(OntarioEnergyPricingSensor):
         """Return the Global Adjustment rate in ¢/kWh."""
         if self.coordinator.data:
             return self.coordinator.data.global_adjustment
-        return None
 
     @property
-    def extra_state_attributes(self) -> dict[str, str | None] | None:
+    def extra_state_attributes(self) -> dict[str, str | None]:
         """Return sensor attributes."""
         if not self.coordinator.data:
-            return None
+            return {}
         return {"trade_month": self.coordinator.data.trade_month}
 
 
@@ -183,13 +180,12 @@ class OntarioTotalRateSensor(OntarioEnergyPricingSensor):
         """Calculate total rate from LMP + GA + Admin Fee."""
         if self.coordinator.data:
             return self.coordinator.data.total_rate
-        return None
 
     @property
-    def extra_state_attributes(self) -> dict[str, float] | None:
+    def extra_state_attributes(self) -> dict[str, float]:
         """Return sensor attributes with component values."""
         if not self.coordinator.data:
-            return None
+            return {}
         return {
             "lmp_rate": self.coordinator.data.current_lmp_kwh,
             "ga_rate": self.coordinator.data.global_adjustment,

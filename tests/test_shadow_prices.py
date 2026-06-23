@@ -1,5 +1,6 @@
 """Tests for Shadow Prices client - congestion costs from IESO."""
 
+import pytest
 import sys
 from unittest.mock import MagicMock
 
@@ -28,163 +29,110 @@ import sys
 sys.path.insert(0, "/home/dmalloc/pidev")
 
 import logging
-from unittest.mock import MagicMock
+import xml.etree.ElementTree as ET
+from datetime import datetime
 
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.DEBUG)
 
-# NOW import the shadow prices module
+# Import after mocking
 from custom_components.ontario_energy_pricing.ieso_shadow_prices import (
     IESOShadowPricesClient,
+    IESOShadowPricesData,
+    IESOConstraintShadowPrice,
+    IESOHourlyShadowPrice,
 )
 
-logging.basicConfig(level=logging.WARNING)
 
-
-# Sample XML fixtures
+# Sample XML from IESO RealtimeConstrShadowPrices feed
 SAMPLE_XML = """<?xml version="1.0" encoding="UTF-8"?>
-<Document docID="RealtimeConstrShadowPrices" xmlns="http://www.ieso.ca/schema">
+<Document docID="RealtimeConstrShadowPrices" xmlns="http://www.ieso.ca/schema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.ieso.ca/schema https://reports-public.ieso.ca/docrefs/schema/RealtimeConstrShadowPrices_r1.xsd">
 <DocHeader>
 <DocTitle>Real-Time Constraints Shadow Prices Report</DocTitle>
+<DocRevision>1</DocRevision>
+<DocConfidentiality>
+<DocConfClass>PUB</DocConfClass>
+</DocConfidentiality>
 <CreatedAt>2026-06-14T08:01:25</CreatedAt>
 </DocHeader>
 <DocBody>
 <DELIVERYDATE>2026-06-08</DELIVERYDATE>
 <HourlyPrice>
-<ConstraintName>BASE CASE 0 NW.O.T21_R.V12N_D</ConstraintName>
+<ConstraintName>BASE CASE                      0 NW.O.T21_R.V12N_D</ConstraintName>
 <DeliveryHour>24</DeliveryHour>
 <IntervalShadowPrices>
 <Interval>1</Interval>
-<ShadowPrice>-1.08</ShadowPrice>
-<Interval>2</Interval>
-<ShadowPrice>-5.77</ShadowPrice>
-<Interval>3</Interval>
-<ShadowPrice>-5.82</ShadowPrice>
-<Interval>4</Interval>
 <ShadowPrice>-8.38</ShadowPrice>
+<Interval>2</Interval>
+<ShadowPrice>-10.52</ShadowPrice>
+<Interval>3</Interval>
+<ShadowPrice>-11.08</ShadowPrice>
+<Interval>4</Interval>
+<ShadowPrice>-10.68</ShadowPrice>
 <Interval>5</Interval>
-<ShadowPrice>-8.37</ShadowPrice>
+<ShadowPrice>-9.77</ShadowPrice>
 <Interval>6</Interval>
-<ShadowPrice>-8.36</ShadowPrice>
+<ShadowPrice>-8.92</ShadowPrice>
 <Interval>7</Interval>
-<ShadowPrice>-8.35</ShadowPrice>
+<ShadowPrice>-8.25</ShadowPrice>
 <Interval>8</Interval>
-<ShadowPrice>-8.36</ShadowPrice>
+<ShadowPrice>-7.52</ShadowPrice>
 <Interval>9</Interval>
-<ShadowPrice>-5.76</ShadowPrice>
+<ShadowPrice>-6.85</ShadowPrice>
 <Interval>10</Interval>
-<ShadowPrice>-8.2</ShadowPrice>
+<ShadowPrice>-6.22</ShadowPrice>
 <Interval>11</Interval>
-<ShadowPrice>-8.19</ShadowPrice>
+<ShadowPrice>-5.63</ShadowPrice>
 <Interval>12</Interval>
 <ShadowPrice>0</ShadowPrice>
 </IntervalShadowPrices>
 </HourlyPrice>
-<HourlyPrice>
-<ConstraintName>BASE CASE 0 NW.O.T21_R.V12N_D</ConstraintName>
-<DeliveryHour>23</DeliveryHour>
-<IntervalShadowPrices>
-<Interval>1</Interval>
-<ShadowPrice>0</ShadowPrice>
-<Interval>2</Interval>
-<ShadowPrice>0</ShadowPrice>
-<Interval>3</Interval>
-<ShadowPrice>15.5</ShadowPrice>
-<Interval>4</Interval>
-<ShadowPrice>25.0</ShadowPrice>
-</IntervalShadowPrices>
-</HourlyPrice>
-</DocBody>
-</Document>"""
+</DocBody></Document>"""
 
+# Multi-constraint XML
 MULTI_CONSTRAINT_XML = """<?xml version="1.0" encoding="UTF-8"?>
-<Document docID="RealtimeConstrShadowPrices" xmlns="http://www.ieso.ca/schema">
-<DocHeader><CreatedAt>2026-06-14T08:01:25</CreatedAt></DocHeader>
+<Document docID="RealtimeConstrShadowPrices" xmlns="http://www.ieso.ca/schema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.ieso.ca/schema https://reports-public.ieso.ca/docrefs/schema/RealtimeConstrShadowPrices_r1.xsd">
+<DocHeader>
+<DocTitle>Real-Time Constraints Shadow Prices Report</DocTitle>
+<DocRevision>1</DocRevision>
+<DocConfidentiality>
+<DocConfClass>PUB</DocConfClass>
+</DocConfidentiality>
+<CreatedAt>2026-06-14T08:01:25</CreatedAt>
+</DocHeader>
 <DocBody>
 <DELIVERYDATE>2026-06-08</DELIVERYDATE>
 <HourlyPrice>
 <ConstraintName>NORTHWEST_IMPORT_LIMIT</ConstraintName>
 <DeliveryHour>15</DeliveryHour>
 <IntervalShadowPrices>
-<Interval>1</Interval><ShadowPrice>25.5</ShadowPrice>
-<Interval>2</Interval><ShadowPrice>30.0</ShadowPrice>
+<Interval>1</Interval>
+<ShadowPrice>25.5</ShadowPrice>
+<Interval>2</Interval>
+<ShadowPrice>30.0</ShadowPrice>
 </IntervalShadowPrices>
 </HourlyPrice>
 <HourlyPrice>
 <ConstraintName>SOUTHWEST_EXPORT_LIMIT</ConstraintName>
 <DeliveryHour>15</DeliveryHour>
 <IntervalShadowPrices>
-<Interval>1</Interval><ShadowPrice>0</ShadowPrice>
-<Interval>2</Interval><ShadowPrice>0</ShadowPrice>
+<Interval>1</Interval>
+<ShadowPrice>0</ShadowPrice>
+<Interval>2</Interval>
+<ShadowPrice>0</ShadowPrice>
 </IntervalShadowPrices>
 </HourlyPrice>
 </DocBody></Document>"""
 
-MULTI_CONSTRAINT_MAX_XML = """<?xml version="1.0" encoding="UTF-8"?>
-<Document docID="RealtimeConstrShadowPrices" xmlns="http://www.ieso.ca/schema">
-<DocHeader><CreatedAt>2026-06-14T08:01:25</CreatedAt></DocHeader>
-<DocBody>
-<DELIVERYDATE>2026-06-08</DELIVERYDATE>
-<HourlyPrice>
-<ConstraintName>CONSTRAINT_A</ConstraintName>
-<DeliveryHour>15</DeliveryHour>
-<IntervalShadowPrices>
-<Interval>1</Interval><ShadowPrice>10.0</ShadowPrice>
-</IntervalShadowPrices>
-</HourlyPrice>
-<HourlyPrice>
-<ConstraintName>CONSTRAINT_B</ConstraintName>
-<DeliveryHour>15</DeliveryHour>
-<IntervalShadowPrices>
-<Interval>1</Interval><ShadowPrice>50.0</ShadowPrice>
-</IntervalShadowPrices>
-</HourlyPrice>
-</DocBody></Document>"""
 
-CURRENT_HOUR_XML = """<?xml version="1.0" encoding="UTF-8"?>
-<Document docID="RealtimeConstrShadowPrices" xmlns="http://www.ieso.ca/schema">
-<DocHeader><CreatedAt>2026-06-14T15:30:00</CreatedAt></DocHeader>
-<DocBody>
-<DELIVERYDATE>2026-06-14</DELIVERYDATE>
-<HourlyPrice>
-<ConstraintName>TEST_CONSTRAINT</ConstraintName>
-<DeliveryHour>16</DeliveryHour>
-<IntervalShadowPrices>
-<Interval>1</Interval><ShadowPrice>25.0</ShadowPrice>
-<Interval>2</Interval><ShadowPrice>30.0</ShadowPrice>
-</IntervalShadowPrices>
-</HourlyPrice>
-</DocBody></Document>"""
+def test_import_works():
+    """Verify the module can be imported."""
+    assert IESOShadowPricesClient is not None
+    assert IESOShadowPricesData is not None
+    assert IESOConstraintShadowPrice is not None
+    assert IESOHourlyShadowPrice is not None
 
-NEGATIVE_XML = """<?xml version="1.0" encoding="UTF-8"?>
-<Document docID="RealtimeConstrShadowPrices" xmlns="http://www.ieso.ca/schema">
-<DocHeader><CreatedAt>2026-06-14T08:01:25</CreatedAt></DocHeader>
-<DocBody>
-<DELIVERYDATE>2026-06-08</DELIVERYDATE>
-<HourlyPrice>
-<ConstraintName>TEST_CONSTRAINT</ConstraintName>
-<DeliveryHour>24</DeliveryHour>
-<IntervalShadowPrices>
-<Interval>1</Interval><ShadowPrice>-1.08</ShadowPrice>
-<Interval>2</Interval><ShadowPrice>-5.77</ShadowPrice>
-<Interval>3</Interval><ShadowPrice>0</ShadowPrice>
-</IntervalShadowPrices>
-</HourlyPrice>
-</DocBody></Document>"""
 
-EMPTY_XML = """<?xml version="1.0" encoding="UTF-8"?>
-<Document docID="RealtimeConstrShadowPrices" xmlns="http://www.ieso.ca/schema">
-<DocHeader><CreatedAt>2026-06-14T08:01:25</CreatedAt></DocHeader>
-<DocBody>
-<DELIVERYDATE>2026-06-08</DELIVERYDATE>
-<HourlyPrice>
-<ConstraintName>EMPTY_CONSTRAINT</ConstraintName>
-<DeliveryHour>15</DeliveryHour>
-<IntervalShadowPrices>
-<Interval>1</Interval><ShadowPrice></ShadowPrice>
-<Interval>2</Interval><ShadowPrice></ShadowPrice>
-</IntervalShadowPrices>
-</HourlyPrice>
-</DocBody></Document>"""
+# --- Client Tests ---
 
 
 @pytest.fixture
@@ -212,7 +160,8 @@ def test_parse_shadow_prices_xml(client):
     assert hour_24 is not None
     assert len(hour_24.intervals) == 12
 
-    assert hour_24.intervals.get(4) == -8.38
+    assert hour_24.intervals.get(1) == -8.38
+    assert hour_24.intervals.get(4) == -10.68
     assert hour_24.intervals.get(12) == 0
 
 
@@ -286,8 +235,6 @@ def test_shadow_price_current_hour():
     current_hour_price = data.get_max_shadow_price(16)
     assert current_hour_price == 30.0  # Last interval of current hour
 
-    print("✅ test_shadow_price_current_hour passed")
-
 
 def test_negative_shadow_prices():
     """Test handling of negative shadow prices (counter-flow relief)."""
@@ -315,8 +262,6 @@ def test_negative_shadow_prices():
     assert hour_24.intervals.get(2) == -5.77
     assert hour_24.intervals.get(3) == 0
 
-    print("✅ test_negative_shadow_prices passed")
-
 
 def test_empty_shadow_prices():
     """Test handling of empty/missing shadow prices."""
@@ -342,8 +287,6 @@ def test_empty_shadow_prices():
     # Empty values should be treated as 0 or None
     assert hour_15.intervals.get(1) in (0, None)
     assert hour_15.intervals.get(2) in (0, None)
-
-    print("✅ test_empty_shadow_prices passed")
 
 
 if __name__ == "__main__":

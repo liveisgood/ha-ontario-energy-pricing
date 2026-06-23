@@ -34,6 +34,50 @@ CONF_LOCATION: Final = "location"
 CONF_WINDOW_HOURS: Final = "window_hours"
 CONF_CHEAPEST_WINDOWS: Final = "cheapest_windows"
 
+# Outage Risk Sensor Thresholds
+CONF_OUTAGE_CAPACITY_THRESHOLD: Final = "outage_capacity_threshold"
+DEFAULT_OUTAGE_CAPACITY_THRESHOLD: Final = 500.0  # MW
+MIN_OUTAGE_CAPACITY_THRESHOLD: Final = 0.0
+MAX_OUTAGE_CAPACITY_THRESHOLD: Final = 2000.0
+
+CONF_OUTAGE_COUNT_THRESHOLD: Final = "outage_count_threshold"
+DEFAULT_OUTAGE_COUNT_THRESHOLD: Final = 5  # count
+MIN_OUTAGE_COUNT_THRESHOLD: Final = 0
+MAX_OUTAGE_COUNT_THRESHOLD: Final = 50
+
+# Congestion Pricing Sensor Thresholds
+CONF_SHADOW_PRICE_AVERAGE_THRESHOLD: Final = "shadow_price_average_threshold"
+DEFAULT_SHADOW_PRICE_AVERAGE_THRESHOLD: Final = 10.0  # $/MWh
+MIN_SHADOW_PRICE_AVERAGE_THRESHOLD: Final = 0.0
+MAX_SHADOW_PRICE_AVERAGE_THRESHOLD: Final = 100.0
+
+CONF_SHADOW_PRICE_MAX_THRESHOLD: Final = "shadow_price_max_threshold"
+DEFAULT_SHADOW_PRICE_MAX_THRESHOLD: Final = 20.0  # $/MWh
+MIN_SHADOW_PRICE_MAX_THRESHOLD: Final = 0.0
+MAX_SHADOW_PRICE_MAX_THRESHOLD: Final = 100.0
+
+CONF_BINDING_CONSTRAINTS_THRESHOLD: Final = "binding_constraints_threshold"
+DEFAULT_BINDING_CONSTRAINTS_THRESHOLD: Final = 3  # count
+MIN_BINDING_CONSTRAINTS_THRESHOLD: Final = 0
+MAX_BINDING_CONSTRAINTS_THRESHOLD: Final = 20
+
+# Intertie Arbitrage Sensor Thresholds
+CONF_ARBITRAGE_SPREAD_THRESHOLD: Final = "arbitrage_spread_threshold"
+DEFAULT_ARBITRAGE_SPREAD_THRESHOLD: Final = 15.0  # $/MWh
+MIN_ARBITRAGE_SPREAD_THRESHOLD: Final = 0.0
+MAX_ARBITRAGE_SPREAD_THRESHOLD: Final = 100.0
+
+# Demand Anomaly Sensor Thresholds
+CONF_DEMAND_ANOMALY_THRESHOLD_PERCENT: Final = "demand_anomaly_threshold_percent"
+DEFAULT_DEMAND_ANOMALY_THRESHOLD_PERCENT: Final = 20.0  # %
+MIN_DEMAND_ANOMALY_THRESHOLD_PERCENT: Final = 0.0
+MAX_DEMAND_ANOMALY_THRESHOLD_PERCENT: Final = 100.0
+
+CONF_DEMAND_HISTORY_SIZE: Final = "demand_history_size"
+DEFAULT_DEMAND_HISTORY_SIZE: Final = 27  # intervals (~2 hours at 5-min intervals)
+MIN_DEMAND_HISTORY_SIZE: Final = 5
+MAX_DEMAND_HISTORY_SIZE: Final = 100
+
 # Entity IDs
 SENSOR_CURRENT_LMP: Final = "current_lmp"
 SENSOR_HOUR_AVG_LMP: Final = "hour_average_lmp"
@@ -137,7 +181,6 @@ LOCATION_TO_ZONE: Final = {
     "blue mountains": "WEST",
     "meaford": "WEST",
 }
-
 
 # Sorted unique location names for dropdown
 LOCATION_OPTIONS: Final = sorted(LOCATION_TO_ZONE.keys())

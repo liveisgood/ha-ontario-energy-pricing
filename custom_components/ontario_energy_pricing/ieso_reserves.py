@@ -1,12 +1,14 @@
 """IESO Operating Reserve Prices Client.
 
 Provides real-time operating reserve LMP prices from IESO.
+CSV format from RealtimeORLMP feed.
 """
 
 from __future__ import annotations
 
 import asyncio
-import xml.etree.ElementTree as ET
+import csv
+import io
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Final
@@ -18,7 +20,7 @@ from .exceptions import IESOPredispatchError
 
 
 IESO_RESERVE_PRICES_URL: Final = (
-    "https://reports-public.ieso.ca/public/RealtimeORLMP/PUB_RealtimeORLMP.xml"
+    "https://reports-public.ieso.ca/public/RealtimeORLMP/PUB_RealtimeORLMP.csv"
 )
 
 
@@ -129,109 +131,82 @@ class IESOReservePricesClient:
                 f"Failed to fetch reserve prices: {err}"
             ) from err
 
-        return self._parse_xml(content)
+        return self._parse_csv(content)
 
-    async def _fetch_xml(self) -> str:
-        """Fetch XML content."""
-        async with self._session.get(
-            IESO_RESERVE_PRICES_URL, timeout=self._timeout
-        ) as resp:
-            resp.raise_for_status()
-            return await resp.text()
+    def _parse_csv(self, csv_content: str) -> IESOReservePriceData:
+        """Parse reserve prices CSV."""
+        # Parse the header line to get created_at
+        lines = csv_content.strip().split("\n")
+        if not lines:
+            raise IESOPredispatchError("Empty CSV content")
 
-    def _parse_xml(self, xml_content: str) -> IESOReservePriceData:
-        """Parse reserve prices XML."""
-        try:
-            root = ET.fromstring(xml_content)
-        except ET.ParseError as err:
-            raise IESOPredispatchError(f"Invalid XML: {err}") from err
+        # First line: "CREATED AT 2026/06/22 19:07:27 FOR 2026/06/22"
+        header_line = lines[0].strip()
+        created_at = datetime.now()
+        delivery_date = datetime.now().strftime("%Y-%m-%d")
 
-        ns = {"ieso": IESO_LMP_NAMESPACE}
+        if header_line.startswith("CREATED AT"):
+            # Parse: CREATED AT 2026/06/22 19:07:27 FOR 2026/06/22
+            parts = header_line.split()
+            if len(parts) >= 5:
+                try:
+                    created_at_str = f"{parts[2]} {parts[3]}"
+                    created_at = datetime.strptime(created_at_str, "%Y/%m/%d %H:%M:%S")
+                    delivery_date = parts[5] if len(parts) > 5 else created_at.strftime("%Y-%m-%d")
+                except (ValueError, IndexError):
+                    pass
 
-        # Parse metadata
-        created_at_elem = root.find(".//ieso:CreatedAt", ns)
-        delivery_date_elem = root.find(".//ieso:DELIVERYDATE", ns)
-
-        if not all(
-            elem is not None and elem.text is not None and elem.text.strip() != ""
-            for elem in [created_at_elem, delivery_date_elem]
-        ):
-            raise IESOPredispatchError("Required XML elements not found")
-
-        assert created_at_elem is not None and created_at_elem.text
-        assert delivery_date_elem is not None and delivery_date_elem.text
-
-        created_at = datetime.fromisoformat(created_at_elem.text)
-        delivery_date = delivery_date_elem.text.strip()
-
-        # Parse HourlyPrice elements
+        # Parse CSV data (skip header line)
+        reader = csv.DictReader(io.StringIO("\n".join(lines[1:])))
         region_prices: dict[str, IESORegionReservePrice] = {}
 
-        for hourly_price in root.findall(".//ieso:HourlyPrice", ns):
-            region_elem = hourly_price.find("ieso:Region", ns)
-            hour_elem = hourly_price.find("ieso:DeliveryHour", ns)
-            interval_elem = hourly_price.find("ieso:Interval", ns)
-            type_elem = hourly_price.find("ieso:Type", ns)
-            price_elem = hourly_price.find("ieso:Price", ns)
-            market_elem = hourly_price.find("ieso:MarketName", ns)
-
-            # Validate required elements and extract text
-            if not all(
-                elem is not None and elem.text is not None and elem.text.strip() != ""
-                for elem in [
-                    region_elem,
-                    hour_elem,
-                    interval_elem,
-                    type_elem,
-                    price_elem,
-                ]
-            ):
-                continue
-
-            region = region_elem.text.strip()
+        for row in reader:
             try:
-                hour = int(hour_elem.text)
-                interval = int(interval_elem.text)
-                price = float(price_elem.text)
-            except (ValueError, TypeError):
+                delivery_hour = int(row["Delivery Hour"])
+                interval = int(row["Interval"])
+                region = row["Pricing Location"].strip()
+
+                # Parse reserve prices: 10S, 10N, 30R
+                # Columns: LMP 10S, Congestion Price 10S, LMP 10N, Congestion Price 10N, LMP 30R, Congestion Price 30R
+                reserve_prices = {
+                    "10S": float(row["LMP 10S"]) if row["LMP 10S"] else 0.0,
+                    "10N": float(row["LMP 10N"]) if row["LMP 10N"] else 0.0,
+                    "30R": float(row["LMP 30R"]) if row["LMP 30R"] else 0.0,
+                }
+
+                # Validate ranges
+                if not 1 <= delivery_hour <= 24:
+                    continue
+                if not 1 <= interval <= 12:
+                    continue
+
+                # Get or create region data
+                if region not in region_prices:
+                    region_prices[region] = IESORegionReservePrice(region=region)
+
+                region_data = region_prices[region]
+
+                # Add each reserve type
+                for reserve_type, price in reserve_prices.items():
+                    if reserve_type not in region_data.reserve_types:
+                        region_data.reserve_types[reserve_type] = IESOReserveTypePrices(
+                            reserve_type=reserve_type
+                        )
+
+                    reserve_type_data = region_data.reserve_types[reserve_type]
+
+                    # Initialize hour dict if needed
+                    if delivery_hour not in reserve_type_data.hourly_prices:
+                        reserve_type_data.hourly_prices[delivery_hour] = {}
+
+                    # Set the price
+                    reserve_type_data.hourly_prices[delivery_hour][interval] = price
+
+            except (ValueError, TypeError, KeyError):
                 continue
-
-            # Validate ranges
-            if not 1 <= hour <= 24:
-                continue
-            if not 1 <= interval <= 12:  # 5-minute intervals in an hour
-                continue
-
-            reserve_type = type_elem.text.strip()
-
-            # Get or create region data
-            if region not in region_prices:
-                region_prices[region] = IESORegionReservePrice(region=region)
-
-            region_data = region_prices[region]
-
-            # Get or create reserve type data
-            if reserve_type not in region_data.reserve_types:
-                region_data.reserve_types[reserve_type] = IESOReserveTypePrices(
-                    reserve_type=reserve_type
-                )
-
-            reserve_type_data = region_data.reserve_types[reserve_type]
-
-            # Initialize hour dict if needed
-            if hour not in reserve_type_data.hourly_prices:
-                reserve_type_data.hourly_prices[hour] = {}
-
-            # Set the price
-            reserve_type_data.hourly_prices[hour][interval] = price
 
         return IESOReservePriceData(
             delivery_date=delivery_date,
             created_at=created_at,
             region_prices=region_prices,
         )
-
-
-IESO_RESERVE_PRICES_URL: Final = (
-    "https://reports-public.ieso.ca/public/RealtimeORLMP/PUB_RealtimeORLMP.xml"
-)

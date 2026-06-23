@@ -18,7 +18,6 @@ import aiohttp
 from .const import IESO_LMP_NAMESPACE
 from .exceptions import IESOPredispatchError
 
-
 IESO_SHADOW_PRICES_URL: Final = (
     "https://reports-public.ieso.ca/public/RealtimeConstrShadowPrices/"
     "PUB_RealtimeConstrShadowPrices.xml"
@@ -166,7 +165,8 @@ class IESOShadowPricesClient:
             if hour_elem is None or hour_elem.text is None:
                 continue
 
-            constraint_name = constraint_elem.text.strip()
+            # Normalize multiple spaces to single space
+            constraint_name = " ".join(constraint_elem.text.split())
             try:
                 hour = int(hour_elem.text)
             except ValueError:

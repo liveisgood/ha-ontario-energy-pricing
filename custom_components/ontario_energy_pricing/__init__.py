@@ -6,11 +6,9 @@ Provides sensors for Ontario electricity pricing components:
 - Global Adjustment
 - Total Rate (LMP + GA + Admin Fee)
 """
-
 from __future__ import annotations
 
 import voluptuous as vol
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -64,26 +62,19 @@ async def async_setup_entry(
         entry.options,
         entry.version,
     )
-
     # Read admin_fee from options (set by options flow) with fallback to data
     admin_fee = entry.options.get(CONF_ADMIN_FEE, entry.data.get(CONF_ADMIN_FEE, 0.0))
     LOGGER.debug("[INIT] Creating coordinator with admin_fee=%s", admin_fee)
-
     coordinator = OntarioEnergyPricingCoordinator(hass, entry, admin_fee)
-
     # Store coordinator in runtime_data (modern pattern)
     entry.runtime_data = coordinator
-
     # Do first refresh - let HA handle ConfigEntryNotReady automatically
     # if the refresh fails, HA will retry setup later
     await coordinator.async_config_entry_first_refresh()
-
     # Forward to sensor platform
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
     # Register options update listener so changes reload the integration
     entry.async_on_unload(entry.add_update_listener(config_entry_update_listener))
-
     LOGGER.debug("[INIT] Setup complete for entry: %s", entry.entry_id)
     return True
 
@@ -94,6 +85,15 @@ async def async_unload_entry(
 ) -> bool:
     """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_reload_entry(
+    hass: HomeAssistant,
+    entry: OntarioEnergyPricingConfigEntry,
+) -> bool:
+    """Reload a config entry."""
+    await async_unload_entry(hass, entry)
+    return await async_setup_entry(hass, entry)
 
 
 async def config_entry_update_listener(
