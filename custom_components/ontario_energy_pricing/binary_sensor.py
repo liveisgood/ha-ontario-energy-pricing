@@ -654,12 +654,13 @@ class OntarioIntertieArbitrageBinarySensor(
         ]
         if not lmp_values:
             return None
-        # Get latest LMP for each intertie point
-        latest_by_point: dict[str, float] = {}
+        # Get latest LMP for each intertie point (use interval as recency proxy)
+        latest_by_point: dict[str, tuple[int, float]] = {}
         for lmp in data.intertie_lmp.lmp_data:
             point = lmp.intertie_point.upper()
-            if point not in latest_by_point or lmp.timestamp > latest_by_point[point][1]:
-                latest_by_point[point] = (lmp.timestamp, lmp.lmp_mwh)
+            sort_key = lmp.delivery_hour * 12 + lmp.interval
+            if point not in latest_by_point or sort_key > latest_by_point[point][0]:
+                latest_by_point[point] = (sort_key, lmp.lmp_mwh)
         # Create a dict of latest prices
         latest_prices = {
             point: price for point, (_, price) in latest_by_point.items()
