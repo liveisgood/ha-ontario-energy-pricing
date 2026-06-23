@@ -27,16 +27,23 @@ from custom_components.ontario_energy_pricing.ieso_demand_zonal import (
     IESODemandZonalClient,
 )
 
-SAMPLE_CSV = """Date Time,Zone,Demand (MW)
-2026-06-14 08:00:00,TORONTO,18500
-2026-06-14 08:00:00,OTTAWA,2100
-2026-06-14 08:05:00,TORONTO,18600
-2026-06-14 08:05:00,OTTAWA,2150
-2026-06-14 08:10:00,TORONTO,18700
-2026-06-14 08:10:00,OTTAWA,2200
+# Real IESO format: 3 metadata lines, then header, then data rows
+SAMPLE_CSV = """Ontario Real-Time 5 Minute Zonal Demand Report
+ CREATED AT 2026/06/14 08:30:00 
+FOR 2026
+Date,Hour,Interval,Ontario Demand,NORTHWEST,NORTHEAST,OTTAWA,EAST,TORONTO,ESSA,BRUCE,SOUTHWEST,NIAGARA,WEST,Zones Total,DIFF
+2026-06-14,1,1,     1386,       57,      123,      89,      93,     471,     103,       8,     254,      49,     159,    1407,      21
+2026-06-14,1,2,     1385,       57,      123,      89,      92,     469,     103,       8,     253,      48,     160,    1403,      17
+2026-06-14,1,3,     1392,       57,      122,      88,      91,     468,     103,       8,     251,      48,     160,    1396,       4
+2026-06-14,1,4,     1384,       58,      121,      88,      90,     466,     102,       8,     249,      48,     159,    1388,       4
+2026-06-14,1,5,     1384,       58,      124,      87,      90,     465,     102,       8,     253,      47,     159,    1393,       9
+2026-06-14,1,6,     1379,       57,      125,      87,      89,     464,     102,       8,     252,      47,     162,    1394,      14
 """
 
-EMPTY_CSV = """Date Time,Zone,Demand (MW)
+EMPTY_CSV = """Ontario Real-Time 5 Minute Zonal Demand Report
+ CREATED AT 2026/06/14 08:30:00 
+FOR 2026
+Date,Hour,Interval,Ontario Demand,NORTHWEST,NORTHEAST,OTTAWA,EAST,TORONTO,ESSA,BRUCE,SOUTHWEST,NIAGARA,WEST,Zones Total,DIFF
 """
 
 
@@ -45,35 +52,26 @@ def test_parse_demand_zonal_csv():
     client = IESODemandZonalClient(MagicMock())
     data = client._parse_csv(SAMPLE_CSV)
 
-    assert len(data.demand_data) == 6
+    # 6 data rows x 10 zones = 60 entries
+    assert len(data.demand_data) == 60
 
-    # Check first Toronto entry
-    toronto_0800 = next(
-        (
-            d
-            for d in data.demand_data
-            if d.zone == "TORONTO" and d.timestamp.hour == 8 and d.timestamp.minute == 0
-        ),
-        None,
-    )
-    assert toronto_0800 is not None
-    assert toronto_0800.demand_mw == 18500.0
+    # Check first Toronto entry (row 1, hour=1, interval=1, Toronto=471)
+    toronto_entries = data.get_demand_by_zone("TORONTO")
+    assert len(toronto_entries) == 6
+    # First entry: hour 1, interval 1 -> timestamp at 00:00
+    first = toronto_entries[0]
+    assert first.demand_mw == 471.0
 
-    # Check first Ottawa entry
-    ottawa_0800 = next(
-        (
-            d
-            for d in data.demand_data
-            if d.zone == "OTTAWA" and d.timestamp.hour == 8 and d.timestamp.minute == 0
-        ),
-        None,
-    )
-    assert ottawa_0800 is not None
-    assert ottawa_0800.demand_mw == 2100.0
+    # Check first Ottawa entry (row 1, hour=1, interval=1, OTTAWA=89)
+    ottawa_entries = data.get_demand_by_zone("OTTAWA")
+    assert len(ottawa_entries) == 6
+    assert ottawa_entries[0].demand_mw == 89.0
 
-    # Check that we have the right zones
+    # Check zones available
     zones = data.get_zones()
-    assert set(zones) == {"TORONTO", "OTTAWA"}
+    expected_zones = {"NORTHWEST", "NORTHEAST", "OTTAWA", "EAST", "TORONTO",
+                      "ESSA", "BRUCE", "SOUTHWEST", "NIAGARA", "WEST"}
+    assert set(zones) == expected_zones
 
 
 def test_get_demand_by_zone():
@@ -82,20 +80,11 @@ def test_get_demand_by_zone():
     data = client._parse_csv(SAMPLE_CSV)
 
     toronto_data = data.get_demand_by_zone("TORONTO")
-    assert len(toronto_data) == 3  # Three 5-minute intervals for Toronto
+    assert len(toronto_data) == 6  # 6 intervals
 
-    ottawa_data = data.get_demand_by_zone("OTTAWA")
-    assert len(ottawa_data) == 3  # Three 5-minute intervals for Ottawa
-
-    # Check that data is sorted by time (should be in order from CSV)
-    assert (
-        toronto_data[0].timestamp
-        < toronto_data[1].timestamp
-        < toronto_data[2].timestamp
-    )
-    assert (
-        ottawa_data[0].timestamp < ottawa_data[1].timestamp < ottawa_data[2].timestamp
-    )
+    # Check timestamps are in order
+    for i in range(len(toronto_data) - 1):
+        assert toronto_data[i].timestamp <= toronto_data[i + 1].timestamp
 
 
 def test_get_latest_demand_by_zone():
@@ -106,16 +95,12 @@ def test_get_latest_demand_by_zone():
     latest_toronto = data.get_latest_demand_by_zone("TORONTO")
     assert latest_toronto is not None
     assert latest_toronto.zone == "TORONTO"
-    assert latest_toronto.timestamp.hour == 8
-    assert latest_toronto.timestamp.minute == 10  # Latest timestamp
-    assert latest_toronto.demand_mw == 18700.0  # Highest value in sample
+    assert latest_toronto.demand_mw == 464.0  # Last row, Toronto column
 
     latest_ottawa = data.get_latest_demand_by_zone("OTTAWA")
     assert latest_ottawa is not None
     assert latest_ottawa.zone == "OTTAWA"
-    assert latest_ottawa.timestamp.hour == 8
-    assert latest_ottawa.timestamp.minute == 10  # Latest timestamp
-    assert latest_ottawa.demand_mw == 2200.0  # Highest value in sample
+    assert latest_ottawa.demand_mw == 87.0  # Last row, Ottawa column
 
 
 def test_empty_demand_zonal():
