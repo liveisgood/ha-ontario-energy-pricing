@@ -57,6 +57,8 @@ class OntarioEnergyPricingData:
     demand_zonal: dict[str, Any] | None = None
     # New: Intertie LMP
     intertie_lmp: dict[str, Any] | None = None
+    # New: Reserve prices
+    reserve_prices: dict[str, Any] | None = None
 
     @property
     def total_rate(self) -> float:
@@ -302,6 +304,7 @@ class OntarioEnergyPricingCoordinator(DataUpdateCoordinator):
                 tx_outages=tx_outages,
                 demand_zonal=demand_zonal,
                 intertie_lmp=intertie_lmp,
+                reserve_prices=reserve_prices,
             )
         except Exception as err:
             raise UpdateFailed(f"Error processing IESO data: {err}") from err

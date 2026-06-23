@@ -712,7 +712,9 @@ class OntarioDemandZonalBaseSensor(OntarioEnergyPricingSensor):
     def native_value(self) -> float | None:
         demand_zonal = self._get_demand_zonal()
         if demand_zonal:
-            return demand_zonal.get_latest_demand_by_zone(self._zone)
+            latest = demand_zonal.get_latest_demand_by_zone(self._zone)
+            if latest:
+                return latest.demand_mw
         return None
 
 
@@ -736,14 +738,14 @@ class OntarioDemandZonalTotalSensor(OntarioEnergyPricingSensor):
         if demand_zonal:
             latest = demand_zonal.get_latest_demand_by_zone("ONTARIO")
             if latest:
-                return latest
+                return latest.demand_mw
             # Sum all zones
             zones = ["NORTHWEST", "NORTHEAST", "OTTAWA", "EAST", "TORONTO", "ESSA", "BRUCE", "SOUTHWEST", "NIAGARA", "WEST"]
-            total = 0
+            total = 0.0
             for zone in zones:
                 val = demand_zonal.get_latest_demand_by_zone(zone)
                 if val:
-                    total += val
+                    total += val.demand_mw
             return total if total > 0 else None
         return None
 
@@ -794,11 +796,10 @@ class OntarioVGForecastBaseSensor(OntarioEnergyPricingSensor):
         from datetime import datetime
         current_hour = datetime.now().hour
         ieso_hour = current_hour if current_hour > 0 else 24
-        today = datetime.now().date()
         if self._fuel_type == "solar":
-            return vg_forecast.get_solar_total_mw(today, ieso_hour)
+            return vg_forecast.solar_forecast_mw.get(ieso_hour, 0.0)
         elif self._fuel_type == "wind":
-            return vg_forecast.get_wind_total_mw(today, ieso_hour)
+            return vg_forecast.wind_forecast_mw.get(ieso_hour, 0.0)
         return None
 
 
@@ -842,7 +843,6 @@ class OntarioVGForecastTotalSensor(OntarioEnergyPricingSensor):
         from datetime import datetime
         current_hour = datetime.now().hour
         ieso_hour = current_hour if current_hour > 0 else 24
-        today = datetime.now().date()
-        solar = vg_forecast.get_solar_total_mw(today, ieso_hour) or 0
-        wind = vg_forecast.get_wind_total_mw(today, ieso_hour) or 0
+        solar = vg_forecast.solar_forecast_mw.get(ieso_hour, 0.0)
+        wind = vg_forecast.wind_forecast_mw.get(ieso_hour, 0.0)
         return solar + wind
