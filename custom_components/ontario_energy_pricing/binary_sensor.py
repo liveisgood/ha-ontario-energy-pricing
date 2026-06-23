@@ -1,6 +1,7 @@
 """Binary sensor platform for Ontario Energy Pricing."""
 from __future__ import annotations
 
+import logging
 from collections import deque
 from typing import Any
 
@@ -24,9 +25,13 @@ from .const import (
     DEFAULT_ARBITRAGE_SPREAD_THRESHOLD,
     DEFAULT_DEMAND_ANOMALY_THRESHOLD_PERCENT,
     DEFAULT_DEMAND_HISTORY_SIZE,
+)
+from .coordinator import (
     OntarioEnergyPricingData,
     OntarioEnergyPricingCoordinator,
 )
+
+LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
