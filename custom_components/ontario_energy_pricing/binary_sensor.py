@@ -98,32 +98,31 @@ class OntarioCheapestHoursBinarySensor(
     @property
     def is_on(self) -> bool | None:
         """Return True if current hour is in cheapest window."""
+        from datetime import datetime
+
         data: OntarioEnergyPricingData | None = self.coordinator.data
         if not data or not data.forecast_today:
             return None
 
-        # Forecast data is UTC, convert to local time using system time
-        # We'll use the hour from the forecast timestamp
-        forecast_hour = data.forecast_today.forecast_timestamp.hour
-        # Check if forecast hour is in the cheapest window
-        start_hour = self._window_config["start_hour"]
-        end_hour = self._window_config["end_hour"]
-        if start_hour <= end_hour:
-            # Does not cross midnight
-            return start_hour <= forecast_hour < end_hour
-        # Crosses midnight
-        return forecast_hour >= start_hour or forecast_hour < end_hour
+        current_hour = datetime.now().hour + 1  # IESO hour 1=00:00-01:00
+        num_hours = self._window_config.get("window_hours", 16)
+        return data.forecast_today.is_in_cheapest_hours(current_hour, num_hours)
 
     @property
     def extra_state_attributes(self) -> dict[str, object] | None:
         """Return entity specific state attributes."""
+        from datetime import datetime
+
         data: OntarioEnergyPricingData | None = self.coordinator.data
         if not data or not data.forecast_today:
             return None
+        num_hours = self._window_config.get("window_hours", 16)
+        current_hour = datetime.now().hour + 1  # IESO hour convention
+        cheapest = data.forecast_today.cheapest_hours(num_hours)
         return {
-            "cheapest_window_start": self._window_config["start_hour"],
-            "cheapest_window_end": self._window_config["end_hour"],
-            "forecast_hour": data.forecast_today.forecast_timestamp.hour,
+            "cheapest_hours": sorted(cheapest),
+            "num_cheapest_hours": num_hours,
+            "current_hour": current_hour,
             "forecast_price_cents_per_kwh": round(
                 data.forecast_today.average_price_kwh, 2
             ),

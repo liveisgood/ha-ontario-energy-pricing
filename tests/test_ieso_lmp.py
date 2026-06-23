@@ -70,7 +70,7 @@ class TestIESOLMPData:
 
         # Average of 50 and 60 = 55 $/MWh = 5.5 ¢/kWh
         assert data.hour_average_mwh == 55.0
-        assert data.hour_average_kwh() == 5.5
+        assert data.hour_average_kwh == 5.5
 
 
 class TestIESOLMPClient:
@@ -141,7 +141,7 @@ class TestIESOLMPClient:
         assert result.delivery_date == "2026-04-12"
         assert result.delivery_hour == 14
         assert result.hour_average_mwh == 53.39666666666667  # (56.55+52.41+51.23)/3
-        assert result.hour_average_kwh() == 5.339666666666667
+        assert result.hour_average_kwh == 5.339666666666667
         assert len(result.intervals) == 3
 
     @pytest.mark.asyncio

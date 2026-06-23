@@ -60,6 +60,7 @@ class IESOLMPData:
             return 0.0
         return sum(i.lmp_mwh for i in self.intervals) / len(self.intervals)
 
+    @property
     def hour_average_kwh(self) -> float:
         """Average LMP across all available intervals in ¢/kWh."""
         # $/MWh × 100¢/$ ÷ 1000kWh/MWh = $/MWh ÷ 10
@@ -72,12 +73,13 @@ class IESOLMPData:
             return None
         return max(self.intervals, key=lambda x: x.interval)
 
+    @property
     def current_lmp_kwh(self) -> float:
         """Current LMP in ¢/kWh."""
         latest = self.latest_interval
         if latest:
             return latest.lmp_kwh
-        return self.hour_average_kwh()
+        return self.hour_average_kwh
 
 
 class IESOLMPClient:
