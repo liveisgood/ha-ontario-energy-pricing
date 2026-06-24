@@ -47,6 +47,7 @@ def mock_config_entry() -> ConfigEntry:
     }
     entry.options = {}
     entry.title = "Test Ontario Energy Pricing"
+    entry.version = 1
     return entry
 
 

@@ -48,20 +48,32 @@ class IESOGlobalAdjustmentClient:
         ns = {"ieso": IESO_GA_NAMESPACE}
 
         trade_month_elem = root.find(".//ieso:TradeMonth", ns)
-        rate_elem = root.find(".//ieso:FirstEstimateRate", ns)
+        # Real feed has FirstEstimateRate under GAValues wrapper
+        rate_elem = root.find(".//ieso:GAValues/ieso:FirstEstimateRate", ns)
+        if rate_elem is None:
+            # Fallback to direct location for compatibility
+            rate_elem = root.find(".//ieso:FirstEstimateRate", ns)
 
-        if not all(
-            elem is not None and elem.text for elem in [trade_month_elem, rate_elem]
-        ):
-            raise IESOXMLParseError("Required GA elements not found")
+        if trade_month_elem is None or not trade_month_elem.text:
+            raise IESOXMLParseError("Missing required GA element: TradeMonth")
 
-        assert trade_month_elem is not None and trade_month_elem.text
-        assert rate_elem is not None and rate_elem.text
+        if rate_elem is None or not rate_elem.text:
+            raise IESOXMLParseError("Missing required GA element: FirstEstimateRate")
 
         trade_month = trade_month_elem.text.strip()
-        rate = float(rate_elem.text.strip())
+        try:
+            # IESO GA feed provides rate in $/MWh, convert to $/kWh
+            rate_mwh = float(rate_elem.text.strip())
+            rate = rate_mwh / 1000.0
+        except ValueError as err:
+            raise IESOXMLParseError(f"Invalid rate value: {err}") from err
 
-        LOGGER.debug("Parsed IESO GA: rate=%s, month=%s", rate, trade_month)
+        LOGGER.debug(
+            "Parsed IESO GA: rate=%s $/kWh (%s $/MWh), month=%s",
+            rate,
+            rate_mwh,
+            trade_month,
+        )
 
         return GlobalAdjustment(
             rate=rate,
