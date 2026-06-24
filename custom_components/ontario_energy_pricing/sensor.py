@@ -197,3 +197,82 @@ class OntarioTotalRateSensor(OntarioEnergyPricingSensor):
             "ga_rate": self.coordinator.data.global_adjustment,
             "admin_fee": self.coordinator.data.admin_fee,
         }
+
+
+# =============================================================================
+# Forecast Sensors
+# =============================================================================
+
+
+class OntarioForecastTodaySensor(OntarioEnergyPricingSensor):
+    """Sensor for today's predispatch forecast average price."""
+
+    _attr_icon = "mdi:weather-sunny"
+    _attr_native_unit_of_measurement = "¢/kWh"
+    _attr_device_class = SensorDeviceClass.MONETARY
+
+    def __init__(self, coordinator: OntarioEnergyPricingCoordinator) -> None:
+        """Initialize the today's forecast sensor."""
+        super().__init__(coordinator, "forecast_today")
+
+    @property
+    def native_value(self) -> float | None:
+        """Return today's forecast average price in ¢/kWh."""
+        if self.coordinator.data and self.coordinator.data.forecast_today:
+            return round(self.coordinator.data.forecast_today.average_price_kwh, 2)
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object]:
+        """Return sensor attributes."""
+        if not self.coordinator.data or not self.coordinator.data.forecast_today:
+            return {}
+        f = self.coordinator.data.forecast_today
+        return {
+            "delivery_date": f.delivery_date,
+            "avg_price_mwh": round(f.average_price_mwh, 2),
+            "min_price_hour": f.min_price_hour.hour if f.min_price_hour else None,
+            "min_price_mwh": round(f.min_price_hour.zonal_price_mwh, 2) if f.min_price_hour else None,
+            "max_price_hour": f.max_price_hour.hour if f.max_price_hour else None,
+            "max_price_mwh": round(f.max_price_hour.zonal_price_mwh, 2) if f.max_price_hour else None,
+            "cheapest_4_hours": sorted(f.cheapest_hours(4)),
+            "cheapest_8_hours": sorted(f.cheapest_hours(8)),
+            "cheapest_16_hours": sorted(f.cheapest_hours(16)),
+        }
+
+
+class OntarioForecastTomorrowSensor(OntarioEnergyPricingSensor):
+    """Sensor for tomorrow's day-ahead forecast average price."""
+
+    _attr_icon = "mdi:weather-partly-cloudy"
+    _attr_native_unit_of_measurement = "¢/kWh"
+    _attr_device_class = SensorDeviceClass.MONETARY
+
+    def __init__(self, coordinator: OntarioEnergyPricingCoordinator) -> None:
+        """Initialize the tomorrow's forecast sensor."""
+        super().__init__(coordinator, "forecast_tomorrow")
+
+    @property
+    def native_value(self) -> float | None:
+        """Return tomorrow's forecast average price in ¢/kWh."""
+        if self.coordinator.data and self.coordinator.data.forecast_tomorrow:
+            return round(self.coordinator.data.forecast_tomorrow.average_price_kwh, 2)
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object]:
+        """Return sensor attributes."""
+        if not self.coordinator.data or not self.coordinator.data.forecast_tomorrow:
+            return {}
+        f = self.coordinator.data.forecast_tomorrow
+        return {
+            "delivery_date": f.delivery_date,
+            "avg_price_mwh": round(f.average_price_mwh, 2),
+            "min_price_hour": f.min_price_hour.hour if f.min_price_hour else None,
+            "min_price_mwh": round(f.min_price_hour.zonal_price_mwh, 2) if f.min_price_hour else None,
+            "max_price_hour": f.max_price_hour.hour if f.max_price_hour else None,
+            "max_price_mwh": round(f.max_price_hour.zonal_price_mwh, 2) if f.max_price_hour else None,
+            "cheapest_4_hours": sorted(f.cheapest_hours(4)),
+            "cheapest_8_hours": sorted(f.cheapest_hours(8)),
+            "cheapest_16_hours": sorted(f.cheapest_hours(16)),
+        }
