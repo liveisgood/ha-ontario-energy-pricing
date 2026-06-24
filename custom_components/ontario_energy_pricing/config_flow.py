@@ -18,6 +18,7 @@ from .const import (
     CONF_WINDOW_HOURS,
     DEFAULT_WINDOW_HOURS,
     DOMAIN,
+    LOCATION_OPTIONS,
     LOGGER,
     MAX_WINDOW_HOURS,
     MIN_WINDOW_HOURS,
@@ -25,7 +26,7 @@ from .const import (
 
 STEP_USER_DATA_SCHEMA: Final = vol.Schema(
     {
-        vol.Required(CONF_LOCATION): str,
+        vol.Required(CONF_LOCATION): vol.In(LOCATION_OPTIONS),
         vol.Required(CONF_ADMIN_FEE, default=0.0): vol.All(
             vol.Coerce(float), vol.Range(min=0)
         ),
@@ -35,7 +36,7 @@ STEP_USER_DATA_SCHEMA: Final = vol.Schema(
 RECONFIGURE_SCHEMA: Final = vol.Schema(
     {
         vol.Required(CONF_ADMIN_FEE): vol.All(vol.Coerce(float), vol.Range(min=0)),
-        vol.Required(CONF_LOCATION): str,
+        vol.Required(CONF_LOCATION): vol.In(LOCATION_OPTIONS),
     }
 )
 
@@ -280,7 +281,9 @@ class OntarioEnergyPricingConfigFlow(ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_ADMIN_FEE, default=current_fee): vol.All(
                     vol.Coerce(float), vol.Range(min=0)
                 ),
-                vol.Required(CONF_LOCATION, default=current_location): str,
+                vol.Required(CONF_LOCATION, default=current_location): vol.In(
+                    LOCATION_OPTIONS
+                ),
             }
         )
         return self.async_show_form(step_id="reconfigure", data_schema=schema)
@@ -296,7 +299,7 @@ class OntarioEnergyPricingOptionsFlow(OptionsFlow):
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        self._config_entry = config_entry
         # Work with a mutable copy of the cheapest windows list
         self._windows: list[dict[str, Any]] = list(
             config_entry.options.get(CONF_CHEAPEST_WINDOWS, [])
@@ -315,9 +318,10 @@ class OntarioEnergyPricingOptionsFlow(OptionsFlow):
         LOGGER.debug("[OPTIONS_FLOW] async_step_init called, user_input=%s", user_input)
 
         if user_input is not None:
-            # Save admin fee, then check actions
+            # Save admin fee and location, then check actions
             new_options = {
                 CONF_ADMIN_FEE: user_input[CONF_ADMIN_FEE],
+                CONF_LOCATION: user_input[CONF_LOCATION],
                 CONF_CHEAPEST_WINDOWS: self._windows,
             }
 
@@ -345,9 +349,13 @@ class OntarioEnergyPricingOptionsFlow(OptionsFlow):
                 )
                 raise
 
-        current_fee = self.config_entry.options.get(
+        current_fee = self._config_entry.options.get(
             CONF_ADMIN_FEE,
-            self.config_entry.data.get(CONF_ADMIN_FEE, 0.0),
+            self._config_entry.data.get(CONF_ADMIN_FEE, 0.0),
+        )
+        current_location = self._config_entry.options.get(
+            CONF_LOCATION,
+            self._config_entry.data.get(CONF_LOCATION, ""),
         )
 
         # Build description showing existing windows
@@ -379,6 +387,10 @@ class OntarioEnergyPricingOptionsFlow(OptionsFlow):
                 CONF_ADMIN_FEE,
                 default=float(current_fee),
             ): vol.All(vol.Coerce(float), vol.Range(min=0)),
+            vol.Required(
+                CONF_LOCATION,
+                default=current_location,
+            ): vol.In(LOCATION_OPTIONS),
             vol.Optional("add_window", default=False): bool,
         }
 
